@@ -1,0 +1,74 @@
+
+(******************************* Symmetric Encryption *******************************)
+
+type key.
+
+fun senc(bitstring, key) : bitstring.
+
+reduc forall m : bitstring, k : key; sdec(senc(m, k), k) = m.
+
+(******************************* RSA *******************************)
+
+type skey.
+type pkey.
+
+fun pk(skey) : pkey.
+fun aenc(bitstring, pkey) : bitstring.
+
+reduc forall m : bitstring, k : skey; adec(aenc(m, pk(k)), k) = m.
+
+(*************************************** DSA ******************************)
+
+type sskey.
+type spkey.
+
+fun spk(sskey) : spkey.
+fun sign(bitstring, sskey) : bitstring.
+
+reduc forall m: bitstring, k : sskey; getmess(sign(m, k)) = m.
+reduc forall m: bitstring, k : sskey; checksign(sign(m, k), spk(k)) = m.
+
+(*************************************** For this process ******************************)
+
+free c : channel.
+
+free s : bitstring[private].
+free z : bitstring[private].
+
+event SvrGotKey.
+event SvrGotCorrectMsg.
+event SvrGotWrongMsg.
+
+free svrSSKey : sskey[private].
+letfun svrSPkey() = spk(svrSSKey).
+(*letfun svrSPkey() = new r : sskey; spk(r).*)
+
+query attacker(s).
+query event(SvrGotCorrectMsg).
+query event(SvrGotWrongMsg).
+
+let clientA(pkA : pkey, skA : skey) =
+	in(c, signedSvrPkey : bitstring);
+	new k : key;
+	let(=svrSPkey(), svrPkey : pkey) = checksign(signedSvrPkey, svrSPkey()) in
+	out(c, aenc((pkA, k), svrPkey));
+	out(c, senc(s, k)).
+
+let serverB() =
+	new svrSkey : skey;
+	let svrPkey = pk(svrSkey) in out(c, sign((svrSPkey(), svrPkey), svrSSKey));
+	in(c, encKey : bitstring);
+	let (pkX : pkey, k : key) = adec(encKey, svrSkey) in
+	event SvrGotKey;
+	in(c, x : bitstring);
+	let z = sdec(x, k) in
+	if (z = s) then
+		event SvrGotCorrectMsg
+	else
+		event SvrGotWrongMsg;
+	0.
+
+process
+	new skA : skey;
+	let pkA = pk(skA) in out(c, pkA);
+	((!clientA(pkA, skA)) | (!serverB()))
