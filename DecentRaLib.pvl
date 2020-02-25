@@ -1,0 +1,141 @@
+(* This library is used for verifying DecentRA (distributed enclave application)
+framework implemented with SGX.
+ 	Author: Haofan Zheng
+*)
+
+(* NOTE: Defs begin with CV_ are derived from cryptoverif.pvl, in order to
+provide potential bridges to CryptoVerif.
+	Credits to the author(s) of cryptoverif.pvl. *)
+
+(***************************** CV_Common_Declarations ******************************)
+
+def CV_Common_Declarations(bitstringbot, bottom, keyseed, cleartext, ciphertext) {
+	type bitstringbot.
+	const bottom:bitstringbot.
+
+	type keyseed.
+	type cleartext.
+	type ciphertext.
+}
+
+(***************************** CV_DSA ******************************)
+
+def CV_det_signature_types(spkey, sskey, signinput, signature) {
+	type sskey.
+	type spkey.
+	type signinput.
+	type signature.
+}
+
+def CV_det_signature_args(keyseed, spkey, sskey, signinput, signature, sskgen, spkgen, sign, checksign) {
+
+fun sign(signinput, sskey): signature.
+fun sskgen(keyseed):sskey.
+fun spkgen(keyseed):spkey.
+
+fun checksign(signinput, spkey, signature): bool
+reduc forall m:signinput, r:keyseed;
+	checksign(m, spkgen(r), sign(m, sskgen(r))) = true
+otherwise forall m: signinput, pk: spkey, s: signature;
+        checksign(m, pk, s) = false.
+
+reduc forall m:signinput, r:keyseed;
+        getmess(sign(m, sskgen(r))) = m.
+
+reduc forall m:signinput, r:keyseed;
+        getkey(sign(m, sskgen(r))) = spkgen(r).
+
+}
+
+(***************************** CV_RSA ******************************)
+
+def CV_public_key_enc_types(pkey, skey, aenc_seed) {
+	type pkey.
+	type skey.
+	type aenc_seed.
+}
+
+def CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, cleartext, ciphertext, aenc_seed, skgen, pkgen, aenc, aenc_r, adec, injbot, Z) {
+
+fun aenc_r(cleartext, pkey, aenc_seed): ciphertext.
+fun skgen(keyseed):skey.
+fun pkgen(keyseed):pkey.
+
+fun injbot(cleartext):bitstringbot [data].
+
+letfun aenc(m: cleartext, pk: pkey) =
+       r <-R aenc_seed; aenc_r(m,pk,r).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+(* Encryption leaks Z(m), typically the length of m *)
+reduc forall m:cleartext, r:aenc_seed, pk:pkey;
+        leak(aenc_r(m, pk, r)) = Z(m).
+(* Note: providing a good definition of Z in ProVerif is a problem *)
+
+fun adec(ciphertext, skey): bitstringbot
+reduc forall m:cleartext, r:keyseed, r2:aenc_seed;
+	adec(aenc_r(m, pkgen(r), r2), skgen(r)) = injbot(m)
+otherwise forall c:ciphertext, sk: skey;
+        adec(c, sk) = bottom.
+
+(* Test equality of keys *)
+reduc forall x:cleartext, x':cleartext, r:aenc_seed, r':aenc_seed, y:pkey;
+        keyeq(aenc_r(x,y,r),aenc_r(x',y,r')) = true.
+
+}
+
+(***************************** CV_keygen ******************************)
+
+def CV_keygen_types(key) {
+	type key.
+}
+
+def CV_keygen_args(keyseed, key, kgen) {
+
+fun kgen(keyseed): key.
+
+}
+
+(***************************** CV_AEAD ******************************)
+
+def CV_AEAD_types(add_data, enc_seed) {
+	type add_data.
+	type enc_seed.
+}
+
+def CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, injbot, Z) {
+
+fun enc_r(cleartext, add_data, key, enc_seed): ciphertext.
+fun injbot(cleartext):bitstringbot [data].
+
+fun dec(ciphertext, add_data, key): bitstringbot
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed;
+	dec(enc_r(m, d, k, r), d, k) = injbot(m)
+otherwise forall c:ciphertext, d:add_data, k:key;
+        dec(c, d, k) = bottom.
+
+fun Z(cleartext):cleartext.
+
+(* The encryption function is probabilistic *)
+letfun enc(m: cleartext, d:add_data, k: key) =
+       r <-R enc_seed; enc_r(m, d, k, r).
+
+(* The additional data is authenticated, but not encrypted, so it may leak *)
+reduc forall m:cleartext, d:add_data, r:enc_seed, k:key;
+        get_data(enc_r(m, d, k, r)) = d.
+
+(* Encryption leaks Z(m), typically the length of m *)
+reduc forall m:cleartext, d:add_data, r:enc_seed, k:key;
+        leak(enc_r(m, d, k, r)) = Z(m).
+(* Note: providing a good definition of Z in ProVerif is a problem *)
+
+(* Test equality of keys *)
+reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:enc_seed, r':enc_seed, y:key;
+        keyeq(enc_r(x,d,y,r),enc_r(x',d',y,r')) = true.
+
+}
+
+(***************************** IAS report key ******************************)

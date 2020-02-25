@@ -1,34 +1,34 @@
+(***************************** library Expansions ******************************)
 
-(******************************* Symmetric Encryption *******************************)
+	(***************************** CV_Common_Declarations ******************************)
 
-type key.
+expand CV_Common_Declarations(bitstringbot, bottom, keyseed, cleartext, ciphertext).
 
-fun senc(bitstring, key) : bitstring.
+	(***************************** CV_DSA ******************************)
 
-reduc forall m : bitstring, k : key; sdec(senc(m, k), k) = m.
+expand CV_det_signature_types(spkey, sskey, signinput, signature).
+expand CV_det_signature_args(keyseed, spkey, sskey, signinput, signature, sskgen, spkgen, sign, checksign).
 
-(******************************* RSA *******************************)
+	(***************************** CV_RSA ******************************)
 
-type skey.
-type pkey.
+expand CV_public_key_enc_types(pkey, skey, aenc_seed).
+expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, cleartext, ciphertext, aenc_seed, skgen, pkgen, aenc, aenc_r, adec, ainjbot, aZ).
 
-fun pk(skey) : pkey.
-fun aenc(bitstring, pkey) : bitstring.
+	(***************************** CV_AEAD ******************************)
 
-reduc forall m : bitstring, k : skey; adec(aenc(m, pk(k)), k) = m.
+expand CV_keygen_types(key).
+expand CV_keygen_args(keyseed, key, kgen).
 
-(*************************************** DSA ******************************)
-
-type sskey.
-type spkey.
-
-fun spk(sskey) : spkey.
-fun sign(bitstring, sskey) : bitstring.
-
-reduc forall m: bitstring, k : sskey; getmess(sign(m, k)) = m.
-reduc forall m: bitstring, k : sskey; checksign(sign(m, k), spk(k)) = m.
+expand CV_AEAD_types(add_data, enc_seed).
+expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, sinjbot, sZ).
 
 (*************************************** For this process ******************************)
+
+fun Pkey2Signin(pkey) : signinput [typeConverter].
+fun key2Cleartext(key) : cleartext [typeConverter].
+fun bit2Cleartext(bitstring) : cleartext [typeConverter].
+
+const emptyAddData : add_data.
 
 free c : channel.
 
@@ -39,8 +39,9 @@ event SvrGotKey.
 event SvrGotCorrectMsg.
 event SvrGotWrongMsg.
 
-free svrSSKey : sskey[private].
-letfun svrSPkey() = spk(svrSSKey).
+free svrSSKeySeed : keyseed[private].
+(*free svrSSKey : sskey[private].*)
+letfun svrSPkey() = spkgen(svrSSKeySeed).
 (*letfun svrSPkey() = new r : sskey; spk(r).*)
 
 query attacker(s).
@@ -48,20 +49,23 @@ query event(SvrGotCorrectMsg).
 query event(SvrGotWrongMsg).
 
 let clientA(pkA : pkey, skA : skey) =
-	in(c, signedSvrPkey : bitstring);
-	new k : key;
-	let(=svrSPkey(), svrPkey : pkey) = checksign(signedSvrPkey, svrSPkey()) in
-	out(c, aenc((pkA, k), svrPkey));
-	out(c, senc(s, k)).
+	in(c, (svrPkey : pkey, svrPkeySign : signature));
+	new kSeed : keyseed;
+	let k = kgen(kSeed) in
+	if checksign(Pkey2Signin(svrPkey), svrSPkey(), svrPkeySign) then
+	out(c, aenc(key2Cleartext(k), svrPkey));
+	out(c, enc(bit2Cleartext(s), emptyAddData, k)).
 
 let serverB() =
-	new svrSkey : skey;
-	let svrPkey = pk(svrSkey) in out(c, sign((svrSPkey(), svrPkey), svrSSKey));
-	in(c, encKey : bitstring);
-	let (pkX : pkey, k : key) = adec(encKey, svrSkey) in
+	new svrSKeySeed : keyseed;
+	let svrSkey = skgen(svrSKeySeed) in
+	let svrPkey = pkgen(svrSKeySeed) in
+	out(c, (svrPkey, sign(Pkey2Signin(svrPkey), sskgen(svrSSKeySeed))));
+	in(c, encKey : ciphertext);
+	let ainjbot(key2Cleartext(k)) = adec(encKey, svrSkey) in
 	event SvrGotKey;
-	in(c, x : bitstring);
-	let z = sdec(x, k) in
+	in(c, x : ciphertext);
+	let sinjbot(bit2Cleartext(z)) = dec(x, emptyAddData, k) in
 	if (z = s) then
 		event SvrGotCorrectMsg
 	else
@@ -69,6 +73,7 @@ let serverB() =
 	0.
 
 process
-	new skA : skey;
-	let pkA = pk(skA) in out(c, pkA);
+	new skASeed : keyseed;
+	let skA = skgen(skASeed) in
+	let pkA = pkgen(skASeed) in
 	((!clientA(pkA, skA)) | (!serverB()))
