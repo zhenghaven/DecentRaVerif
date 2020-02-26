@@ -40,11 +40,13 @@ free z : bitstring[private].
 
 event SvrGotKey.
 event SvrGotMalMsg.
+event SvrGotMsg.
 
 const svrSSKeySeed : keyseed[private].
 
 query attacker(s) public_vars pub_svrSPKey.
 query event(SvrGotMalMsg) public_vars pub_svrSPKey.
+query event(SvrGotMsg) public_vars pub_svrSPKey.
 
 let clientA(spkA : spkey, sskA : sskey, svrSPkey : spkey) =
 	in(c, (svrPkey : pkey, svrPkeySign : signature));
@@ -72,6 +74,10 @@ let serverB(svrSPkey : spkey, svrSSkey : sskey, spkA : spkey) =
 		if (z <> s) then
 		(
 			event SvrGotMalMsg
+		)
+		else
+		(
+			event SvrGotMsg
 		)
 	).
 
