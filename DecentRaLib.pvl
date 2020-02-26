@@ -7,6 +7,9 @@ framework implemented with SGX.
 provide potential bridges to CryptoVerif.
 	Credits to the author(s) of cryptoverif.pvl. *)
 
+(*============================================================================*)
+(*****************************   CV Defs Starts  ******************************)
+
 (***************************** CV_Common_Declarations ******************************)
 
 def CV_Common_Declarations(bitstringbot, bottom, keyseed, cleartext, ciphertext) {
@@ -138,4 +141,35 @@ reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:enc_seed, r':
 
 }
 
+(*****************************    CV Defs Ends   ******************************)
+(*============================================================================*)
+
+(*============================================================================*)
+(*************************** DecentRA Defs Starts *****************************)
+
 (***************************** IAS report key ******************************)
+
+def Decent_Enclave_Basics_types(enclave, enclaveHash) {
+	type enclave.
+	type enclaveHash.
+}
+
+def Decent_Enclave_Basics_args(enclave, enclaveHash, HashEnclave) {
+	fun HashEnclave(enclave) : enclaveHash.
+}
+
+(***************************** IAS report key ******************************)
+
+def Decent_IAS_Report_args(keyseed, sskey, spkey, sskgen, sign, signinput, enclave, enclaveHash, HashEnclave, iasRepKeySeed, Rep2Signin, GetSignedIasRep) {
+	free iasRepKeySeed : keyseed [private].
+
+	(*let iasRepSSKey : sskey = sskgen(iasRepKeySeed) in*)
+	(*let pub_iasRepSPKey : sskey = spkgen(iasRepKeySeed) in*)
+
+	fun Rep2Signin((enclaveHash, bitstring)) : signinput [typeConverter].
+
+	letfun GetSignedIasRep(enc : enclave, appData : bitstring) = let rep = (HashEnclave(enc), appData) in (rep, sign(Rep2Signin(rep), sskgen(iasRepKeySeed))).
+}
+
+(*************************** DecentRA Defs Ends *******************************)
+(*============================================================================*)
