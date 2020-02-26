@@ -1,0 +1,49 @@
+(***************************** library Expansions ******************************)
+
+	(***************************** CV_Common_Declarations ******************************)
+
+expand CV_Common_Declarations(bitstringbot, bottom, keyseed, cleartext, ciphertext).
+
+	(***************************** CV_DSA ******************************)
+
+expand CV_det_signature_types(spkey, sskey, signinput, signature).
+expand CV_det_signature_args(keyseed, spkey, sskey, signinput, signature, sskgen, spkgen, sign, checksign).
+
+	(***************************** CV_RSA ******************************)
+
+expand CV_public_key_enc_types(pkey, skey, aenc_seed).
+expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, cleartext, ciphertext, aenc_seed, skgen, pkgen, aenc, aenc_r, adec, ainjbot, aZ).
+
+	(***************************** CV_AEAD ******************************)
+
+expand CV_keygen_types(key).
+expand CV_keygen_args(keyseed, key, kgen).
+
+expand CV_AEAD_types(add_data, enc_seed).
+expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, sinjbot, sZ).
+
+	(***************************** DecentRA_EnclaveBas ******************************)
+
+expand Decent_Enclave_Basics_types(enclaveProg, enclaveHash).
+expand Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave).
+
+	(***************************** DecentRA_IasRep ******************************)
+
+expand Decent_IAS_Report_args(keyseed, sskey, spkey, sskgen, sign, signinput, enclaveProg, enclaveHash, HashEnclave, iasRepKeySeed, IasRep2Signin, GetSignedIasRep).
+
+(*============================================================================*)
+(******************************* For this process *****************************)
+
+set attacker = active.
+
+free enclaveA : enclaveProg [private].
+free enclaveB : enclaveProg [private].
+
+const emptyStr : bitstring.
+
+query attacker(enclaveA).
+
+process
+	let (rep : signinput, repSign : signature) = GetSignedIasRep(enclaveA, emptyStr) in
+	let IasRep2Signin(enclaveAHash : enclaveHash, appData : bitstring) = rep in
+	0

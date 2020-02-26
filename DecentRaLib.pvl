@@ -147,28 +147,28 @@ reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:enc_seed, r':
 (*============================================================================*)
 (*************************** DecentRA Defs Starts *****************************)
 
-(***************************** IAS report key ******************************)
+(***************************** Enclave Basics ******************************)
 
-def Decent_Enclave_Basics_types(enclave, enclaveHash) {
-	type enclave.
+def Decent_Enclave_Basics_types(enclaveProg, enclaveHash) {
+	type enclaveProg.
 	type enclaveHash.
 }
 
-def Decent_Enclave_Basics_args(enclave, enclaveHash, HashEnclave) {
-	fun HashEnclave(enclave) : enclaveHash.
+def Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave) {
+	fun HashEnclave(enclaveProg) : enclaveHash.
 }
 
 (***************************** IAS report key ******************************)
 
-def Decent_IAS_Report_args(keyseed, sskey, spkey, sskgen, sign, signinput, enclave, enclaveHash, HashEnclave, iasRepKeySeed, Rep2Signin, GetSignedIasRep) {
+def Decent_IAS_Report_args(keyseed, sskey, spkey, sskgen, sign, signinput, enclaveProg, enclaveHash, HashEnclave, iasRepKeySeed, IasRep2Signin, GetSignedIasRep) {
 	free iasRepKeySeed : keyseed [private].
 
 	(*let iasRepSSKey : sskey = sskgen(iasRepKeySeed) in*)
 	(*let pub_iasRepSPKey : sskey = spkgen(iasRepKeySeed) in*)
 
-	fun Rep2Signin((enclaveHash, bitstring)) : signinput [typeConverter].
+	fun IasRep2Signin(enclaveHash, bitstring) : signinput [data].
 
-	letfun GetSignedIasRep(enc : enclave, appData : bitstring) = let rep = (HashEnclave(enc), appData) in (rep, sign(Rep2Signin(rep), sskgen(iasRepKeySeed))).
+	letfun GetSignedIasRep(enc : enclaveProg, appData : bitstring) = let rep = IasRep2Signin(HashEnclave(enc), appData) in (rep, sign(rep, sskgen(iasRepKeySeed))).
 }
 
 (*************************** DecentRA Defs Ends *******************************)
