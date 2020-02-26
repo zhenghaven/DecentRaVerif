@@ -39,15 +39,12 @@ free s : bitstring[private].
 free z : bitstring[private].
 
 event SvrGotKey.
-event SvrGotCorrectMsg.
-event SvrGotWrongMsg.
-event ProcFailed.
+event SvrGotMalMsg.
 
 const svrSSKeySeed : keyseed[private].
 
 query attacker(s) public_vars pub_svrSPKey.
-(*query event(SvrGotCorrectMsg).*)
-query event(SvrGotWrongMsg).
+query event(SvrGotMalMsg) public_vars pub_svrSPKey.
 
 let clientA(spkA : spkey, sskA : sskey, svrSPkey : spkey) =
 	in(c, (svrPkey : pkey, svrPkeySign : signature));
@@ -58,10 +55,6 @@ let clientA(spkA : spkey, sskA : sskey, svrSPkey : spkey) =
 		let encK = aenc(key2Cleartext(k), svrPkey) in
 		out(c, (encK, sign(Cipher2Signin(encK), sskA)));
 		out(c, enc(bit2Cleartext(s), emptyAddData, k))
-	)
-	else
-	(
-		event ProcFailed
 	).
 
 let serverB(svrSPkey : spkey, svrSSkey : sskey, spkA : spkey) =
@@ -76,18 +69,10 @@ let serverB(svrSPkey : spkey, svrSSkey : sskey, spkA : spkey) =
 		event SvrGotKey;
 		in(c, x : ciphertext);
 		let sinjbot(bit2Cleartext(z)) = dec(x, emptyAddData, k) in
-		if (z = s) then
+		if (z <> s) then
 		(
-			event SvrGotCorrectMsg
+			event SvrGotMalMsg
 		)
-		else
-		(
-			event SvrGotWrongMsg
-		)
-	)
-	else
-	(
-		event ProcFailed
 	).
 
 process
