@@ -24,7 +24,10 @@ expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, 
 
 (*************************************** For this process ******************************)
 
+set attacker = active.
+
 fun Pkey2Signin(pkey) : signinput [typeConverter].
+fun Cipher2Signin(ciphertext) : signinput [typeConverter].
 fun key2Cleartext(key) : cleartext [typeConverter].
 fun bit2Cleartext(bitstring) : cleartext [typeConverter].
 
@@ -38,42 +41,60 @@ free z : bitstring[private].
 event SvrGotKey.
 event SvrGotCorrectMsg.
 event SvrGotWrongMsg.
+event ProcFailed.
 
-free svrSSKeySeed : keyseed[private].
-(*free svrSSKey : sskey[private].*)
-letfun svrSPkey() = spkgen(svrSSKeySeed).
-(*letfun svrSPkey() = new r : sskey; spk(r).*)
+const svrSSKeySeed : keyseed[private].
 
-query attacker(s).
-query event(SvrGotCorrectMsg).
+query attacker(s) public_vars pub_svrSPKey.
+(*query event(SvrGotCorrectMsg).*)
 query event(SvrGotWrongMsg).
 
-let clientA(pkA : pkey, skA : skey) =
+let clientA(spkA : spkey, sskA : sskey, svrSPkey : spkey) =
 	in(c, (svrPkey : pkey, svrPkeySign : signature));
 	new kSeed : keyseed;
 	let k = kgen(kSeed) in
-	if checksign(Pkey2Signin(svrPkey), svrSPkey(), svrPkeySign) then
-	out(c, aenc(key2Cleartext(k), svrPkey));
-	out(c, enc(bit2Cleartext(s), emptyAddData, k)).
+	if checksign(Pkey2Signin(svrPkey), svrSPkey, svrPkeySign) then
+	(
+		let encK = aenc(key2Cleartext(k), svrPkey) in
+		out(c, (encK, sign(Cipher2Signin(encK), sskA)));
+		out(c, enc(bit2Cleartext(s), emptyAddData, k))
+	)
+	else
+	(
+		event ProcFailed
+	).
 
-let serverB() =
+let serverB(svrSPkey : spkey, svrSSkey : sskey, spkA : spkey) =
 	new svrSKeySeed : keyseed;
 	let svrSkey = skgen(svrSKeySeed) in
 	let svrPkey = pkgen(svrSKeySeed) in
-	out(c, (svrPkey, sign(Pkey2Signin(svrPkey), sskgen(svrSSKeySeed))));
-	in(c, encKey : ciphertext);
-	let ainjbot(key2Cleartext(k)) = adec(encKey, svrSkey) in
-	event SvrGotKey;
-	in(c, x : ciphertext);
-	let sinjbot(bit2Cleartext(z)) = dec(x, emptyAddData, k) in
-	if (z = s) then
-		event SvrGotCorrectMsg
+	out(c, (svrPkey, sign(Pkey2Signin(svrPkey), svrSSkey)));
+	in(c, (encKey : ciphertext, encKsign : signature));
+	if checksign(Cipher2Signin(encKey), spkA, encKsign) then
+	(
+		let ainjbot(key2Cleartext(k)) = adec(encKey, svrSkey) in
+		event SvrGotKey;
+		in(c, x : ciphertext);
+		let sinjbot(bit2Cleartext(z)) = dec(x, emptyAddData, k) in
+		if (z = s) then
+		(
+			event SvrGotCorrectMsg
+		)
+		else
+		(
+			event SvrGotWrongMsg
+		)
+	)
 	else
-		event SvrGotWrongMsg;
-	0.
+	(
+		event ProcFailed
+	).
 
 process
-	new skASeed : keyseed;
-	let skA = skgen(skASeed) in
-	let pkA = pkgen(skASeed) in
-	((!clientA(pkA, skA)) | (!serverB()))
+	let pub_svrSPKey : spkey = spkgen(svrSSKeySeed) in
+
+	let svrSSKey : sskey = sskgen(svrSSKeySeed) in
+	new sskASeed : keyseed;
+	let skA = sskgen(sskASeed) in
+	let pkA = spkgen(sskASeed) in
+	((!clientA(pkA, skA, pub_svrSPKey)) | (!serverB(pub_svrSPKey, svrSSKey, pkA)))
