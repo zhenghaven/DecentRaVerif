@@ -239,6 +239,18 @@ def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 		DecentSvrCertGetSPKey(ToDecentSvrCert(spk, iasRep, s)) = spk.
 }
 
+(***************************** Decent App ******************************)
+
+(* Certs *)
+
+(* process (NOTE: revocation) *)
+
+(***************************** Decent Verified App ******************************)
+
+(* Certs *)
+
+(* process (NOTE: revocation) *)
+
 (***************************** Auth List ******************************)
 
 def Decent_Auth_List(AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, enclaveHash) {
