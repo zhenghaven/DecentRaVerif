@@ -29,11 +29,15 @@ expand Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave, SPKey2B
 
 	(***************************** DecentRA_IasRep ******************************)
 
-expand Decent_IAS_Report_args(keyseed, sskey, spkey, sskgen, sign, signinput, enclaveProg, enclaveHash, HashEnclave, iasRepKeySeed, IasRep2Signin, GetSignedIasRep).
+expand Decent_IAS_Report_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature,
+	enclaveProg, enclaveHash, HashEnclave,
+	iasRepKeySeed, SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData).
 
 	(***************************** DecentRA_DecentSvr ******************************)
 
-expand Decent_Decent_Server_args(keyseed, sskgen, spkgen, enclaveProg, GetDecentSvrCert, GetSignedIasRep, SPKey2Bitstr, enclaveDecentSvr).
+expand Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature, spkey,
+	enclaveProg, SignedIasRep, GetSignedIasRep, SPKey2Bitstr, HashEnclave, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData,
+	enclaveDecentSvr, DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert, DecentSvrCertGetSPKey).
 
 	(***************************** DecentRA_AuthList ******************************)
 
@@ -69,7 +73,9 @@ process
 	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), AuthListEmpty) in
 	let authList1 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName), authList0) in
 	let authList2 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveC), enclaveCName), authList1) in
-	if AuthListIsIn(AuthListNewItem(HashEnclave(enclaveD), enclaveAName), authList2) then
+
+	let svrCert = GetDecentSvrCert() in
+	if VrfyDecentSvrCert(svrCert) then
 	(
 		event testEve1
 	)
