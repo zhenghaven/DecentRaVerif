@@ -154,8 +154,10 @@ def Decent_Enclave_Basics_types(enclaveProg, enclaveHash) {
 	type enclaveHash.
 }
 
-def Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave) {
+def Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, spkey) {
 	fun HashEnclave(enclaveProg) : enclaveHash.
+
+	fun SPKey2Bitstr(spkey) : bitstring [typeConverter].
 }
 
 (***************************** IAS report key ******************************)
@@ -164,11 +166,37 @@ def Decent_IAS_Report_args(keyseed, sskey, spkey, sskgen, sign, signinput, encla
 	free iasRepKeySeed : keyseed [private].
 
 	(*let iasRepSSKey : sskey = sskgen(iasRepKeySeed) in*)
-	(*let pub_iasRepSPKey : sskey = spkgen(iasRepKeySeed) in*)
+	(*let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in*)
 
 	fun IasRep2Signin(enclaveHash, bitstring) : signinput [data].
 
 	letfun GetSignedIasRep(enc : enclaveProg, appData : bitstring) = let rep = IasRep2Signin(HashEnclave(enc), appData) in (rep, sign(rep, sskgen(iasRepKeySeed))).
+}
+
+(***************************** Decent Server ******************************)
+
+def Decent_Decent_Server_args(keyseed, sskgen, spkgen, enclaveProg, GetDecentSvrCert, GetSignedIasRep, SPKey2Bitstr, enclaveDecentSvr) {
+	free enclaveDecentSvr : enclaveProg [private].
+
+	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
+
+	letfun GetDecentSvrCert() = new svrKeySeed : keyseed; (sskgen(svrKeySeed), spkgen(svrKeySeed), GetSignedIasRep(enclaveDecentSvr, SPKey2Bitstr(spkgen(svrKeySeed)))).
+}
+
+(***************************** Auth List ******************************)
+
+def Decent_Auth_List(AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, enclaveHash) {
+	type AuthListItem.
+	fun AuthListNewItem(enclaveHash, bitstring) : AuthListItem [data].
+
+	type AuthList.
+	fun AuthListInsert(AuthListItem, AuthList) : AuthList [data].
+	const AuthListEmpty : AuthList [data].
+
+	pred AuthListIsIn(AuthListItem, AuthList).
+	clauses
+		forall x : AuthListItem, y : AuthList; AuthListIsIn(x, AuthListInsert(x, y));
+		forall x : AuthListItem, y : AuthList, z : AuthListItem; AuthListIsIn(x, y) -> AuthListIsIn(x, AuthListInsert(z, y)).
 }
 
 (*************************** DecentRA Defs Ends *******************************)
