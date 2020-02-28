@@ -149,12 +149,10 @@ reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:enc_seed, r':
 
 (***************************** Enclave Basics ******************************)
 
-def Decent_Enclave_Basics_types(enclaveProg, enclaveHash) {
+def Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr) {
 	type enclaveProg.
 	type enclaveHash.
-}
 
-def Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, spkey) {
 	fun HashEnclave(enclaveProg) : enclaveHash.
 
 	fun SPKey2Bitstr(spkey) : bitstring [typeConverter].
@@ -162,45 +160,96 @@ def Decent_Enclave_Basics_args(enclaveProg, enclaveHash, HashEnclave, SPKey2Bits
 
 (***************************** IAS report key ******************************)
 
-def Decent_IAS_Report_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature,
-	enclaveProg, enclaveHash, HashEnclave,
-	iasRepKeySeed, SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData) {
-	free iasRepKeySeed : keyseed [private].
+def Decent_IAS_Report(
+	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
+	(** This. Vars  **) iasRepKeySeed, encPrvsKeySeed,
+	(** This. Quote **) EnclaveSignedQuote, ToEnclaveSignedQuote, EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote, VrfyEnclaveSignedQuote_intr,
+	(** This. Rep   **) SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep, VrfySignedIasRep_intr, VrfySignedIasRep,
+	(** This. Proc  **) IasProc_intr) {
 
+	const iasRepKeySeed : keyseed [private].
 	(*let iasRepSSKey : sskey = sskgen(iasRepKeySeed) in*)
 	(*let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in*)
 
-	type SignedIasRep.
+	const encPrvsKeySeed : keyseed [private].
+	(*let encPrvsKey : sskey = sskgen(encPrvsKeySeed) in*)
+	(*let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in*)
 
-	fun ToSignedIasRep(enclaveHash, bitstring, signature): SignedIasRep [data].
+	type EnclaveSignedQuote.
 
-	fun IasRep2Signin(enclaveHash, bitstring) : signinput [data].
+	fun ToEnclaveSignedQuote(enclaveHash, bitstring, signature) : EnclaveSignedQuote [data].
 
-	letfun GetSignedIasRep(enc : enclaveProg, appData : bitstring) =
-		ToSignedIasRep(HashEnclave(enc), appData,
-			sign(IasRep2Signin(HashEnclave(enc), appData), sskgen(iasRepKeySeed))
+	fun EnclaveQuoteSignin(enclaveHash, bitstring) : signinput [data].
+
+	letfun GetEnclaveSignedQuote_intr(enc : enclaveProg, appData : bitstring, prvsSSKey : sskey) =
+		ToEnclaveSignedQuote(HashEnclave(enc), appData,
+			sign(EnclaveQuoteSignin(HashEnclave(enc), appData), prvsSSKey)
 		).
 
-	letfun VrfySignedIasRep(iasRep : SignedIasRep) =
-		let ToSignedIasRep(encHash : enclaveHash, appData: bitstring, s : signature) = iasRep in
-		checksign(IasRep2Signin(encHash, appData), spkgen(iasRepKeySeed), s).
+	letfun GetEnclaveSignedQuote(enc : enclaveProg, appData : bitstring) = GetEnclaveSignedQuote_intr(enc, appData, sskgen(encPrvsKeySeed)).
 
-	reduc forall encHash : enclaveHash, appData: bitstring, s : signature;
-		SignedIasRepGetEncHash(ToSignedIasRep(encHash, appData, s)) = encHash.
+	fun VrfyEnclaveSignedQuote_intr(EnclaveSignedQuote, spkey) : bool
+		reduc forall encHash : enclaveHash, appData: bitstring, s : signature, prvsSeed : keyseed;
+			VrfyEnclaveSignedQuote_intr(ToEnclaveSignedQuote(encHash, appData, sign(EnclaveQuoteSignin(encHash, appData), sskgen(prvsSeed))), spkgen(prvsSeed)) = true
+		otherwise forall quote : EnclaveSignedQuote, encPrvsKey : spkey;
+			VrfyEnclaveSignedQuote_intr(quote, encPrvsKey) = false.
 
-	reduc forall encHash : enclaveHash, appData: bitstring, s : signature;
-		SignedIasRepGetAppData(ToSignedIasRep(encHash, appData, s)) = appData.
+	type SignedIasRep.
+
+	fun ToSignedIasRep(bool, enclaveHash, bitstring, signature): SignedIasRep [data].
+
+	fun IasRep2Signin(bool, enclaveHash, bitstring) : signinput [data].
+
+	letfun GetSignedIasRep_intr(res : bool, encHash : enclaveHash, appData : bitstring, iasSSKey : sskey) =
+		ToSignedIasRep(res, encHash, appData,
+			sign(IasRep2Signin(res, encHash, appData), iasSSKey)
+		).
+
+	letfun GetSignedIasRep(res : bool, encHash : enclaveHash, appData : bitstring) = GetSignedIasRep_intr(res, encHash, appData, sskgen(iasRepKeySeed)).
+
+	fun VrfySignedIasRep_intr(SignedIasRep, spkey) : bool
+		reduc forall res : bool, encHash : enclaveHash, appData: bitstring, s : signature, iasKeySeed : keyseed;
+			VrfySignedIasRep_intr(ToSignedIasRep(res, encHash, appData, sign(IasRep2Signin(res, encHash, appData), sskgen(iasKeySeed))), spkgen(iasKeySeed)) = res
+		otherwise forall iasRep : SignedIasRep, iasSPkey : spkey;
+			VrfySignedIasRep_intr(iasRep, iasSPkey) = false.
+
+	letfun VrfySignedIasRep(iasRep : SignedIasRep) = VrfySignedIasRep_intr(iasRep, spkgen(iasRepKeySeed)).
+
+	let IasProc_intr(iasCh : channel, iasKeySeed : keyseed, prvsPKey : spkey) =
+		in(iasCh, signedQuote : EnclaveSignedQuote);
+		if VrfyEnclaveSignedQuote_intr(signedQuote, prvsPKey) then
+		(
+			let ToEnclaveSignedQuote(encHash : enclaveHash, appData : bitstring, quoteSign : signature) = signedQuote in
+			let iasRep = GetSignedIasRep_intr(true, encHash, appData, sskgen(iasKeySeed)) in
+			out(iasCh, iasRep)
+		)
+		else
+		(
+			let ToEnclaveSignedQuote(encHash : enclaveHash, appData : bitstring, quoteSign : signature) = signedQuote in
+			let iasRep = GetSignedIasRep_intr(false, encHash, appData, sskgen(iasKeySeed)) in
+			out(iasCh, iasRep)
+		).
+
 }
 
 (***************************** Decent Server ******************************)
 
-def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature, sskey, spkey,
-	enclaveProg, enclaveHash, SignedIasRep, GetSignedIasRep, SPKey2Bitstr, HashEnclave, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData,
-	enclaveDecentSvr, DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert, AuthList,
-	DecentAppCert, ToDecentAppCert, DecentAppSignin, GetDecentAppCert, VrfyDecentAppCert) {
-	free enclaveDecentSvr : enclaveProg.
+def Decent_Decent_Server(
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
+	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr,
+	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, SignedIasRep, ToSignedIasRep, VrfySignedIasRep_intr,
+	(** Lists         **) AuthList,
+	(** This. Vars    **) enclaveDecentSvr,
+	(** This. SvrCert **) DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
+	(** This. AppCert **) DecentAppCert, ToDecentAppCert, DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
+	(** This. SvrProc **) DecentSvrProc_intr) {
+
+	const enclaveDecentSvr : enclaveProg.
 
 	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
+
+	(* Decent App Cert *)
 
 	type DecentSvrCert.
 
@@ -208,23 +257,21 @@ def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 
 	fun DecentSvrSignin(spkey, SignedIasRep) : signinput [data].
 
-	letfun GetDecentSvrCert() =
-		new svrKeySeed : keyseed;
-		let sk = spkgen(svrKeySeed) in
-		let iasRep = GetSignedIasRep(enclaveDecentSvr, SPKey2Bitstr(spkgen(svrKeySeed))) in
-		(sskgen(svrKeySeed), ToDecentSvrCert(
-			sk,
+	letfun GetDecentSvrCert(svrKeySeed : keyseed, iasRep : SignedIasRep) =
+		ToDecentSvrCert(
+			spkgen(svrKeySeed),
 			iasRep,
-			sign(DecentSvrSignin(sk, iasRep), sskgen(svrKeySeed))
-		)).
+			sign(DecentSvrSignin(spkgen(svrKeySeed), iasRep), sskgen(svrKeySeed))
+		).
 
-	letfun VrfyDecentSvrCert(cert : DecentSvrCert) =
-		let ToDecentSvrCert(spk : spkey, iasRep : SignedIasRep, s : signature) = cert in
-		if VrfySignedIasRep(iasRep) then
+	letfun VrfyDecentSvrCert_intr(cert : DecentSvrCert, svrHash : enclaveHash, iasSPkey : spkey) =
+		let ToDecentSvrCert(svrSPkey : spkey, iasRep : SignedIasRep, certSign : signature) = cert in
+		if VrfySignedIasRep_intr(iasRep, iasSPkey) then
 		(
-			if (HashEnclave(enclaveDecentSvr) = SignedIasRepGetEncHash(iasRep)) && (SPKey2Bitstr(spk) = SignedIasRepGetAppData(iasRep)) then
+			let ToSignedIasRep(res : bool, encHash : enclaveHash, appData: bitstring, iasSign : signature) = iasRep in
+			if (svrHash = encHash) && (SPKey2Bitstr(svrSPkey) = appData) then
 			(
-				checksign(DecentSvrSignin(spk, iasRep), spk, s)
+				checksign(DecentSvrSignin(svrSPkey, iasRep), svrSPkey, certSign)
 			)
 			else
 			(
@@ -244,25 +291,42 @@ def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 
 	fun DecentAppSignin(enclaveHash, spkey, AuthList) : signinput [data].
 
-	letfun GetDecentAppCert(appProg : enclaveProg, appSPKey : spkey, auLs : AuthList) =
-		let (svrSSKey : sskey, svrCert : DecentSvrCert) = GetDecentSvrCert() in
-		(ToDecentAppCert(
-			HashEnclave(appProg),
+	letfun GetDecentAppCert(appHash : enclaveHash, appSPKey : spkey, auLs : AuthList, svrSSKey : sskey) =
+		ToDecentAppCert(
+			appHash,
 			appSPKey,
 			auLs,
-			sign(DecentAppSignin(HashEnclave(appProg), appSPKey, auLs), svrSSKey)
-		), svrCert).
+			sign(DecentAppSignin(appHash, appSPKey, auLs), svrSSKey)
+		).
 
-	letfun VrfyDecentAppCert(appCert : DecentAppCert, svrCert : DecentSvrCert) =
-		if VrfyDecentSvrCert(svrCert) then
+	letfun VrfyDecentAppCertChain_intr(appCert : DecentAppCert, svrCert : DecentSvrCert, svrHash : enclaveHash, iasSPkey : spkey) =
+		if VrfyDecentSvrCert_intr(svrCert, svrHash, iasSPkey) then
 		(
-			let ToDecentSvrCert(svrSPKey : spkey, iasRep : SignedIasRep, svrCertS : signature) = svrCert in
-			let ToDecentAppCert(appHash : enclaveHash, appSPKey : spkey, auLs : AuthList, s : signature) = appCert in
-			checksign(DecentAppSignin(appHash, appSPKey, auLs), svrSPKey, s)
+			let ToDecentSvrCert(svrSPKey : spkey, iasRep : SignedIasRep, svrCertSign : signature) = svrCert in
+			let ToDecentAppCert(appHash : enclaveHash, appSPKey : spkey, auLs : AuthList, appCertSign : signature) = appCert in
+			checksign(DecentAppSignin(appHash, appSPKey, auLs), svrSPKey, appCertSign)
 		)
 		else
 		(
 			false
+		).
+
+	let DecentSvrProc_intr(iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
+		new svrKeySeed : keyseed;
+		let svrSPkey = spkgen(svrKeySeed) in
+		let svrSSKey = sskgen(svrKeySeed) in
+		let prvsSSkey = sskgen(prvsKeySeed) in
+		let signedQuote = GetEnclaveSignedQuote_intr(enclaveDecentSvr, SPKey2Bitstr(svrSPkey), prvsSSkey) in
+		out(iasCh, signedQuote);
+		in(iasCh, iasRep : SignedIasRep);
+		if VrfySignedIasRep_intr(iasRep, iasSPkey) then
+		(
+			(* Successfully received valid IAS report. *)
+			(* Generate Decent Server Certificate. *)
+			let svrCert = GetDecentSvrCert(svrKeySeed, iasRep) in
+
+			(* Now waiting for requests from Decent Apps. *)
+			0
 		).
 }
 
