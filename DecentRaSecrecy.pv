@@ -35,7 +35,7 @@ expand Decent_IAS_Report_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 
 	(***************************** DecentRA_AuthList ******************************)
 
-expand Decent_Auth_List(AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, enclaveHash).
+expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn).
 
 	(***************************** DecentRA_DecentSvr ******************************)
 
@@ -65,7 +65,6 @@ const emptyStr : bitstring.
 event testEve1.
 event testEve2.
 
-query attacker(enclaveA) public_vars pub_iasRepSPKey, pub_decentSvrHash.
 query event(testEve1) public_vars pub_iasRepSPKey, pub_decentSvrHash.
 query event(testEve2) public_vars pub_iasRepSPKey, pub_decentSvrHash.
 

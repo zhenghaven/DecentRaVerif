@@ -278,20 +278,32 @@ def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 
 (* process (NOTE: revocation) *)
 
-(***************************** Auth List ******************************)
+(***************************** Auth & Revc List ******************************)
 
-def Decent_Auth_List(AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, enclaveHash) {
+def Decent_List(ListType, ListInsert, ListEmpty, ListIsIn, ListItem) {
+	type ListType.
+	fun ListInsert(ListItem, ListType) : ListType [data].
+	const ListEmpty : ListType [data].
+
+	pred ListIsIn(ListItem, ListType).
+	clauses
+		forall x : ListItem, y : ListType; ListIsIn(x, ListInsert(x, y));
+		forall x : ListItem, y : ListType, z : ListItem; ListIsIn(x, y) -> ListIsIn(x, ListInsert(z, y)).
+}
+
+def Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn) {
 	type AuthListItem.
 	fun AuthListNewItem(enclaveHash, bitstring) : AuthListItem [data].
 
-	type AuthList.
-	fun AuthListInsert(AuthListItem, AuthList) : AuthList [data].
-	const AuthListEmpty : AuthList [data].
+	expand Decent_List(AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, AuthListItem).
+}
+}
 
-	pred AuthListIsIn(AuthListItem, AuthList).
-	clauses
-		forall x : AuthListItem, y : AuthList; AuthListIsIn(x, AuthListInsert(x, y));
-		forall x : AuthListItem, y : AuthList, z : AuthListItem; AuthListIsIn(x, y) -> AuthListIsIn(x, AuthListInsert(z, y)).
+def Decent_Recv_List(enclaveHash, RecvListItem, RecvListNewItem, RecvList, RecvListInsert, RecvListEmpty, RecvListIsIn) {
+	type RecvListItem.
+	fun RecvListNewItem(enclaveHash, bitstring) : RecvListItem [data].
+
+	expand Decent_List(RecvList, RecvListInsert, RecvListEmpty, RecvListIsIn, RecvListItem).
 }
 
 (*************************** DecentRA Defs Ends *******************************)
