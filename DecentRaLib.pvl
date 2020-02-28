@@ -194,10 +194,11 @@ def Decent_IAS_Report_args(keyseed, sskgen, spkgen, sign, checksign, signinput, 
 
 (***************************** Decent Server ******************************)
 
-def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature, spkey,
-	enclaveProg, SignedIasRep, GetSignedIasRep, SPKey2Bitstr, HashEnclave, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData,
-	enclaveDecentSvr, DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert, DecentSvrCertGetSPKey) {
-	free enclaveDecentSvr : enclaveProg [private].
+def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature, sskey, spkey,
+	enclaveProg, enclaveHash, SignedIasRep, GetSignedIasRep, SPKey2Bitstr, HashEnclave, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData,
+	enclaveDecentSvr, DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert, AuthList,
+	DecentAppCert, ToDecentAppCert, DecentAppSignin, GetDecentAppCert, VrfyDecentAppCert) {
+	free enclaveDecentSvr : enclaveProg.
 
 	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
 
@@ -211,11 +212,11 @@ def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 		new svrKeySeed : keyseed;
 		let sk = spkgen(svrKeySeed) in
 		let iasRep = GetSignedIasRep(enclaveDecentSvr, SPKey2Bitstr(spkgen(svrKeySeed))) in
-		ToDecentSvrCert(
+		(sskgen(svrKeySeed), ToDecentSvrCert(
 			sk,
 			iasRep,
 			sign(DecentSvrSignin(sk, iasRep), sskgen(svrKeySeed))
-		).
+		)).
 
 	letfun VrfyDecentSvrCert(cert : DecentSvrCert) =
 		let ToDecentSvrCert(spk : spkey, iasRep : SignedIasRep, s : signature) = cert in
@@ -235,8 +236,34 @@ def Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 			false
 		).
 
-	reduc forall spk : spkey, iasRep : SignedIasRep, s : signature;
-		DecentSvrCertGetSPKey(ToDecentSvrCert(spk, iasRep, s)) = spk.
+	(* Decent App Cert *)
+
+	type DecentAppCert.
+
+	fun ToDecentAppCert(enclaveHash, spkey, AuthList, signature) : DecentAppCert [data].
+
+	fun DecentAppSignin(enclaveHash, spkey, AuthList) : signinput [data].
+
+	letfun GetDecentAppCert(appProg : enclaveProg, appSPKey : spkey, auLs : AuthList) =
+		let (svrSSKey : sskey, svrCert : DecentSvrCert) = GetDecentSvrCert() in
+		(ToDecentAppCert(
+			HashEnclave(appProg),
+			appSPKey,
+			auLs,
+			sign(DecentAppSignin(HashEnclave(appProg), appSPKey, auLs), svrSSKey)
+		), svrCert).
+
+	letfun VrfyDecentAppCert(appCert : DecentAppCert, svrCert : DecentSvrCert) =
+		if VrfyDecentSvrCert(svrCert) then
+		(
+			let ToDecentSvrCert(svrSPKey : spkey, iasRep : SignedIasRep, svrCertS : signature) = svrCert in
+			let ToDecentAppCert(appHash : enclaveHash, appSPKey : spkey, auLs : AuthList, s : signature) = appCert in
+			checksign(DecentAppSignin(appHash, appSPKey, auLs), svrSPKey, s)
+		)
+		else
+		(
+			false
+		).
 }
 
 (***************************** Decent App ******************************)

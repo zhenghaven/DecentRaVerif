@@ -33,28 +33,31 @@ expand Decent_IAS_Report_args(keyseed, sskgen, spkgen, sign, checksign, signinpu
 	enclaveProg, enclaveHash, HashEnclave,
 	iasRepKeySeed, SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData).
 
-	(***************************** DecentRA_DecentSvr ******************************)
-
-expand Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature, spkey,
-	enclaveProg, SignedIasRep, GetSignedIasRep, SPKey2Bitstr, HashEnclave, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData,
-	enclaveDecentSvr, DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert, DecentSvrCertGetSPKey).
-
 	(***************************** DecentRA_AuthList ******************************)
 
 expand Decent_Auth_List(AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, enclaveHash).
+
+	(***************************** DecentRA_DecentSvr ******************************)
+
+expand Decent_Decent_Server_args(keyseed, sskgen, spkgen, sign, checksign, signinput, signature, sskey, spkey,
+	enclaveProg, enclaveHash, SignedIasRep, GetSignedIasRep, SPKey2Bitstr, HashEnclave, VrfySignedIasRep, SignedIasRepGetEncHash, SignedIasRepGetAppData,
+	enclaveDecentSvr, DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert, AuthList,
+	DecentAppCert, ToDecentAppCert, DecentAppSignin, GetDecentAppCert, VrfyDecentAppCert).
 
 (*============================================================================*)
 (******************************* For this process *****************************)
 
 set attacker = active.
 
-free enclaveA : enclaveProg [private].
+free c : channel.
+
+free enclaveA : enclaveProg.
 free enclaveAName : bitstring.
-free enclaveB : enclaveProg [private].
+free enclaveB : enclaveProg.
 free enclaveBName : bitstring.
-free enclaveC : enclaveProg [private].
+free enclaveC : enclaveProg.
 free enclaveCName : bitstring.
-free enclaveD : enclaveProg [private].
+free enclaveD : enclaveProg.
 free enclaveDName : bitstring.
 
 const emptyStr : bitstring.
@@ -72,9 +75,11 @@ process
 
 	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), AuthListEmpty) in
 	let authList1 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName), authList0) in
-	let authList2 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveC), enclaveCName), authList1) in
+	let authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveC), enclaveCName), authList1) in
 
-	let svrCert = GetDecentSvrCert() in
+	new appAKeySeed : keyseed;
+	let (appCert : DecentAppCert, svrCert : DecentSvrCert) = GetDecentAppCert(enclaveA, spkgen(appAKeySeed), authListA) in
+
 	if VrfyDecentSvrCert(svrCert) then
 	(
 		event testEve1
