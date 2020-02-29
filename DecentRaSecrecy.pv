@@ -24,7 +24,7 @@ expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, 
 
 	(***************************** DecentRA_EnclaveBas ******************************)
 
-expand Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr).
+expand Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType).
 
 expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
 	DiHeG, DiHeValG, DiHeExp, EcDiHeToPKey, EcDiHeToKey, EcDiHeKeyGen).
@@ -37,11 +37,11 @@ expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, Au
 
 expand Decent_IAS_Report(
 	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
-	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave, EventSubType,
 	(** This. Vars  **) iasRepKeySeed, encPrvsKeySeed,
 	(** This. Quote **) EnclaveSignedQuote, ToEnclaveSignedQuote, EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote, VrfyEnclaveSignedQuote_intr,
 	(** This. Rep   **) SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep, VrfySignedIasRep_intr, VrfySignedIasRep,
-	(** This. Proc  **) IasProc_intr).
+	(** This. Proc  **) IasProcEvent, IasProc_intr).
 
 	(***************************** DecentRA_DecentSvr ******************************)
 
@@ -58,12 +58,19 @@ expand Decent_Decent_Server(
 (*============================================================================*)
 (******************************* For this process *****************************)
 
+(* Settings: *)
 set attacker = active.
 
+(* Channels: *)
 free c : channel.
 free svrIasCh : channel.
 free appSvrCh : channel.
 
+(* Event Sub Types: *)
+const iasAcceptEve : EventSubType.
+const iasRejectEve : EventSubType.
+
+(* Testings: *)
 const enclaveA : enclaveProg.
 const enclaveAName : bitstring.
 const enclaveB : enclaveProg.
@@ -78,8 +85,7 @@ const emptyStr : bitstring.
 event testEve1.
 event testEve2.
 
-query event(testEve1) public_vars pub_iasRepSPKey.
-query event(testEve2) public_vars pub_iasRepSPKey.
+query event(IasProcEvent(iasAcceptEve)) public_vars pub_iasRepSPKey.
 
 process
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
@@ -91,6 +97,6 @@ process
 	let authList1 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName), authList0) in
 	let authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveC), enclaveCName), authList1) in
 
-	(!IasProc_intr(svrIasCh, iasRepKeySeed, pub_encPrvsKey))
+	(!IasProc_intr(svrIasCh, iasRepKeySeed, pub_encPrvsKey, iasAcceptEve, iasRejectEve))
 	|
 	(!DecentSvrProc_intr(svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, encRepKeySeed))

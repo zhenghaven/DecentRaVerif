@@ -165,13 +165,15 @@ def CV_Diffie_Hellman_args(DiHeG, DiHeZ, DiHeValG, DiHeExp) {
 
 (***************************** Enclave Basics ******************************)
 
-def Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr) {
+def Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType) {
 	type enclaveProg.
 	type enclaveHash.
 
 	fun HashEnclave(enclaveProg) : enclaveHash.
 
 	fun SPKey2Bitstr(spkey) : bitstring [typeConverter].
+
+	type EventSubType.
 }
 
 def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
@@ -202,11 +204,11 @@ def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
 
 def Decent_IAS_Report(
 	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
-	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave, EventSubType,
 	(** This. Vars  **) iasRepKeySeed, encPrvsKeySeed,
 	(** This. Quote **) EnclaveSignedQuote, ToEnclaveSignedQuote, EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote, VrfyEnclaveSignedQuote_intr,
 	(** This. Rep   **) SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep, VrfySignedIasRep_intr, VrfySignedIasRep,
-	(** This. Proc  **) IasProc_intr) {
+	(** This. Proc  **) IasProcEvent, IasProc_intr) {
 
 	const iasRepKeySeed : keyseed [private].
 	(*let iasRepSSKey : sskey = sskgen(iasRepKeySeed) in*)
@@ -256,19 +258,23 @@ def Decent_IAS_Report(
 
 	letfun VrfySignedIasRep(iasRep : SignedIasRep) = VrfySignedIasRep_intr(iasRep, spkgen(iasRepKeySeed)).
 
-	let IasProc_intr(iasCh : channel, iasKeySeed : keyseed, prvsPKey : spkey) =
+	event IasProcEvent(EventSubType).
+
+	let IasProc_intr(iasCh : channel, iasKeySeed : keyseed, prvsPKey : spkey, accEve : EventSubType, rejEve : EventSubType) =
 		in(iasCh, signedQuote : EnclaveSignedQuote);
 		if VrfyEnclaveSignedQuote_intr(signedQuote, prvsPKey) then
 		(
 			let ToEnclaveSignedQuote(encHash : enclaveHash, appData : bitstring, quoteSign : signature) = signedQuote in
 			let iasRep = GetSignedIasRep_intr(true, encHash, appData, sskgen(iasKeySeed)) in
-			out(iasCh, iasRep)
+			out(iasCh, iasRep);
+			event IasProcEvent(accEve)
 		)
 		else
 		(
 			let ToEnclaveSignedQuote(encHash : enclaveHash, appData : bitstring, quoteSign : signature) = signedQuote in
 			let iasRep = GetSignedIasRep_intr(false, encHash, appData, sskgen(iasKeySeed)) in
-			out(iasCh, iasRep)
+			out(iasCh, iasRep);
+			event IasProcEvent(rejEve)
 		).
 
 }
