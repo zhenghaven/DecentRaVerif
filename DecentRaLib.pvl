@@ -141,6 +141,22 @@ reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:enc_seed, r':
 
 }
 
+(***************************** CV_Diffie-Hellman ******************************)
+
+def CV_Diffie_Hellman_types(DiHeG, DiHeZ) {
+	type DiHeG.
+	type DiHeZ.
+}
+
+def CV_Diffie_Hellman_args(DiHeG, DiHeZ, DiHeValG, DiHeExp) {
+	const DiHeValG : DiHeG.
+
+	fun DiHeExp(DiHeG, DiHeZ) : DiHeG.
+
+	equation forall x : DiHeZ, y : DiHeZ;
+		DiHeExp(DiHeExp(DiHeValG, x), y) = DiHeExp(DiHeExp(DiHeValG, y), x).
+}
+
 (*****************************    CV Defs Ends   ******************************)
 (*============================================================================*)
 
@@ -156,6 +172,30 @@ def Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bi
 	fun HashEnclave(enclaveProg) : enclaveHash.
 
 	fun SPKey2Bitstr(spkey) : bitstring [typeConverter].
+}
+
+def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
+	DiHeG, DiHeValG, DiHeExp, EcDiHeToPKey, EcDiHeToKey, EcDiHeKeyGen) {
+	(*
+	ecskey = DiHeZ;
+	ecpkey = DiHeExp(DiHeValG, ecskey);
+	EcDiHe(ecpkey, ecskey)
+	*)
+
+	expand CV_Diffie_Hellman_types(DiHeG, ecskey).
+
+	type ecpkey.
+
+	expand CV_Diffie_Hellman_args (DiHeG, ecskey, DiHeValG, DiHeExp).
+
+	fun EcDiHeToPKey(DiHeG) : ecpkey [typeConverter].
+	fun EcDiHeToKey(DiHeG) : key.
+
+	letfun ecpkgen(sk : ecskey) = EcDiHeToPKey(DiHeExp(DiHeValG, sk)).
+
+	letfun EcDiHeKeyGen(sk : ecskey, pk : ecpkey) =
+		let EcDiHeToPKey(pkVal : DiHeG) = pk in
+		EcDiHeToKey(DiHeExp(pkVal, sk)).
 }
 
 (***************************** IAS report key ******************************)

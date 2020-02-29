@@ -26,6 +26,9 @@ expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, 
 
 expand Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr).
 
+expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
+	DiHeG, DiHeValG, DiHeExp, EcDiHeToPKey, EcDiHeToKey, EcDiHeKeyGen).
+
 	(***************************** DecentRA_AuthList ******************************)
 
 expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn).
