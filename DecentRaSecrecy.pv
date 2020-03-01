@@ -29,9 +29,13 @@ expand Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey
 expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
 	DiHeG, DiHeValG, DiHeExp, EcDiHeToPKey, EcDiHeToKey, EcDiHeKeyGen).
 
-	(***************************** DecentRA_AuthList ******************************)
+	(***************************** DecentRA_LocAtt ******************************)
 
-expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn).
+expand Decent_Local_Attestation(
+	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave, EventSubType,
+	(** ECHD Key    **) ecpkey,
+	(** This. Rep   **) LocAttSignedRep, ToLocAttSignedRep, LocAttRep, GetLocAttSignedRep, VrfyLocAttSignedRep).
 
 	(***************************** DecentRA_IasRep ******************************)
 
@@ -42,6 +46,10 @@ expand Decent_IAS_Report(
 	(** This. Quote **) EnclaveSignedQuote, ToEnclaveSignedQuote, EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote, VrfyEnclaveSignedQuote_intr,
 	(** This. Rep   **) SignedIasRep, ToSignedIasRep, IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep, VrfySignedIasRep_intr, VrfySignedIasRep,
 	(** This. Proc  **) IasProcEvent, IasProc_intr).
+
+	(***************************** DecentRA_AuthList ******************************)
+
+expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn).
 
 	(***************************** DecentRA_DecentSvr ******************************)
 

@@ -200,6 +200,32 @@ def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen,
 		EcDiHeToKey(DiHeExp(pkVal, sk)).
 }
 
+(***************************** Local Attestation ******************************)
+
+def Decent_Local_Attestation(
+	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave, EventSubType,
+	(** ECHD Key    **) ecpkey,
+	(** This. Rep   **) LocAttSignedRep, ToLocAttSignedRep, LocAttRep, GetLocAttSignedRep, VrfyLocAttSignedRep) {
+
+	type LocAttSignedRep.
+
+	fun ToLocAttSignedRep(ecpkey, enclaveHash, bitstring, signature) : LocAttSignedRep [data].
+
+	fun LocAttRep(ecpkey, enclaveHash, bitstring) : signinput [data].
+
+	letfun GetLocAttSignedRep(encrPKey : ecpkey, enc : enclaveProg, appData : bitstring, repKey : sskey) =
+		ToLocAttSignedRep(encrPKey, HashEnclave(enc), appData,
+			sign(LocAttRep(encrPKey, HashEnclave(enc), appData), repKey)
+		).
+
+	fun VrfyLocAttSignedRep(LocAttSignedRep, spkey) : bool
+		reduc forall encrPKey : ecpkey, encHash : enclaveHash, appData: bitstring, s : signature, repKeySeed : keyseed;
+			VrfyLocAttSignedRep(ToLocAttSignedRep(encrPKey, encHash, appData, sign(LocAttRep(encrPKey, encHash, appData), sskgen(repKeySeed))), spkgen(repKeySeed)) = true
+		otherwise forall rep : LocAttSignedRep, repKey : spkey;
+			VrfyLocAttSignedRep(rep, repKey) = false.
+}
+
 (***************************** IAS report key ******************************)
 
 def Decent_IAS_Report(
