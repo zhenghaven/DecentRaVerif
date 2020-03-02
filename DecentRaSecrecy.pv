@@ -2,7 +2,7 @@
 
 	(***************************** CV_Common_Declarations ******************************)
 
-expand CV_Common_Declarations(bitstringbot, bottom, keyseed, cleartext, ciphertext).
+expand CV_Common_Declarations(bitstringbot, bottom, emptyStr, keyseed, cleartext, ciphertext).
 
 	(***************************** CV_DSA ******************************)
 
@@ -19,7 +19,7 @@ expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, clearte
 expand CV_keygen_types(key).
 expand CV_keygen_args(keyseed, key, kgen).
 
-expand CV_AEAD_types(add_data, enc_seed).
+expand CV_AEAD_types(add_data, enc_seed, empty_add_data).
 expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, sinjbot, sZ).
 
 	(***************************** DecentRA_EnclaveBas ******************************)
@@ -54,14 +54,28 @@ expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, Au
 	(***************************** DecentRA_DecentSvr ******************************)
 
 expand Decent_Decent_Server(
-	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature,
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, enc, dec, sinjbot, empty_add_data,
 	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr,
+	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
+	(** LocAtt Rep    **) LocAttSignedRep, ToLocAttSignedRep, GetLocAttSignedRep, VrfyLocAttSignedRep,
 	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, SignedIasRep, ToSignedIasRep, VrfySignedIasRep_intr,
-	(** Lists         **) AuthList,
-	(** This. Vars    **) enclaveDecentSvr,
+	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
+	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrCert, ToDecentSvrCert, DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppCert, ToDecentAppCert, DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
-	(** This. SvrProc **) DecentSvrProc_intr).
+	(** This. SvrProc **) DecentSvrProc_intr, DecentAppCertSignReq, DecentAppCertToCipher).
+
+		(***************************** DecentRA_DecentApp ******************************)
+
+expand Decent_Decent_App(
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, enc, dec, sinjbot, empty_add_data,
+	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr,
+	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
+	(** LocAtt Rep    **) LocAttSignedRep, ToLocAttSignedRep, GetLocAttSignedRep, VrfyLocAttSignedRep,
+	(** Ias Rep       **) SignedIasRep, ToSignedIasRep, VrfySignedIasRep_intr,
+	(** Decent Svr    **) DecentAppCert, DecentAppCertSignReq, DecentAppCertToCipher, VrfyDecentAppCertChain_intr,
+	(** Lists         **) AuthList,
+	(** This. SvrProc **) DecentAppSvrProc_intr, DecentAppCltProc_intr).
 
 (*============================================================================*)
 (******************************* For this process *****************************)
@@ -73,6 +87,7 @@ set attacker = active.
 free c : channel.
 free svrIasCh : channel.
 free appSvrCh : channel.
+free appAB_Ch : channel.
 
 (* Event Sub Types: *)
 const iasAcceptEve : EventSubType.
@@ -81,14 +96,13 @@ const iasRejectEve : EventSubType.
 (* Testings: *)
 const enclaveA : enclaveProg.
 const enclaveAName : bitstring.
+const enclaveAKeySeed : keyseed [private].
 const enclaveB : enclaveProg.
 const enclaveBName : bitstring.
 const enclaveC : enclaveProg.
 const enclaveCName : bitstring.
 const enclaveD : enclaveProg.
 const enclaveDName : bitstring.
-
-const emptyStr : bitstring.
 
 event testEve1.
 event testEve2.
@@ -101,10 +115,13 @@ process
 
 	new encRepKeySeed : keyseed;
 
-	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), AuthListEmpty) in
-	let authList1 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName), authList0) in
-	let authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveC), enclaveCName), authList1) in
+	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty) in
+	let authList1 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), authList0) in
+	let authList2 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName), authList1) in
+	let authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveC), enclaveCName), authList2) in
 
 	(!IasProc_intr(svrIasCh, iasRepKeySeed, pub_encPrvsKey, iasAcceptEve, iasRejectEve))
 	|
-	(!DecentSvrProc_intr(svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, encRepKeySeed))
+	(!DecentSvrProc_intr(enclaveDecentSvr, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, encRepKeySeed))
+	|
+	(!DecentAppSvrProc_intr(enclaveA, appSvrCh, appAB_Ch, pub_encPrvsKey, encRepKeySeed, enclaveAKeySeed, authListA))
