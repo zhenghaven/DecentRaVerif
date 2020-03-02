@@ -392,7 +392,7 @@ def Decent_Decent_Server(
 
 	fun DecentAppCertSignReq(spkey, AuthList) : cleartext [data].
 
-	fun DecentAppCertToCipher(DecentAppCert) : cleartext [typeConverter].
+	fun DecentAppCertToCipher(DecentSvrCert, DecentAppCert) : cleartext [data].
 
 	let DecentSvrProc_intr(encProg : enclaveProg, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
 		new svrKeySeed : keyseed;
@@ -425,7 +425,7 @@ def Decent_Decent_Server(
 				(* >app 2. Generate App Certificate *)
 				in(appCh, certSignReqCipher : ciphertext);
 				let sinjbot(DecentAppCertSignReq(appSPkey : spkey, auLs : AuthList)) = dec(certSignReqCipher, empty_add_data, locChKey) in
-				out(appCh, enc(DecentAppCertToCipher(GetDecentAppCert(appEncHash, appSPkey, auLs, svrSSKey)), empty_add_data, locChKey))
+				out(appCh, enc(DecentAppCertToCipher(svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, svrSSKey)), empty_add_data, locChKey))
 			)
 		).
 }
@@ -442,7 +442,7 @@ def Decent_Decent_App(
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
 	(** LocAtt Rep    **) LocAttSignedRep, ToLocAttSignedRep, GetLocAttSignedRep, VrfyLocAttSignedRep,
 	(** Ias Rep       **) SignedIasRep, ToSignedIasRep, VrfySignedIasRep_intr,
-	(** Decent Svr    **) DecentAppCert, DecentAppCertSignReq, DecentAppCertToCipher, VrfyDecentAppCertChain_intr,
+	(** Decent Svr    **) DecentSvrCert, DecentAppCert, DecentAppCertSignReq, DecentAppCertToCipher, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
 	(** This. SvrProc **) DecentAppSvrProc_intr, DecentAppCltProc_intr) {
 
@@ -460,7 +460,7 @@ def Decent_Decent_App(
 			(* >svr 2. Request for App Certificate *)
 			out(svrCh, enc(DecentAppCertSignReq(spkgen(appKeySeed), auLs), empty_add_data, locChKey));
 			in(svrCh, appCertCipher : ciphertext);
-			let sinjbot(DecentAppCertToCipher(appCert : DecentAppCert)) = dec(appCertCipher, empty_add_data, locChKey) in
+			let sinjbot(DecentAppCertToCipher(svrCert : DecentSvrCert, appCert : DecentAppCert)) = dec(appCertCipher, empty_add_data, locChKey) in
 			0
 
 			(* >peer 1. Verify peer's certificate chain *)
@@ -480,7 +480,7 @@ def Decent_Decent_App(
 			(* >svr 2. Request for App Certificate *)
 			out(svrCh, enc(DecentAppCertSignReq(spkgen(appKeySeed), auLs), empty_add_data, locChKey));
 			in(svrCh, appCertCipher : ciphertext);
-			let sinjbot(DecentAppCertToCipher(appCert : DecentAppCert)) = dec(appCertCipher, empty_add_data, locChKey) in
+			let sinjbot(DecentAppCertToCipher(svrCert : DecentSvrCert, appCert : DecentAppCert)) = dec(appCertCipher, empty_add_data, locChKey) in
 			0
 
 			(* >peer 1. Verify peer's certificate chain *)
