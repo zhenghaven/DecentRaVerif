@@ -278,7 +278,7 @@ def Decent_Decent_Server(
 	const decentSvrName : bitstring.
 
 	event DecentSvrIssueCert(enclaveProg, enclaveHash, spkey, AuthList).
-	event DecentSvrGotIasRep(enclaveProg).
+	event DecentSvrGotIasRep(enclaveProg, spkey).
 
 	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
 
@@ -333,21 +333,18 @@ def Decent_Decent_Server(
 			(*sync 2*)
 		).
 
-	let DecentSvrProc_intr(encProg : enclaveProg, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
-		new svrKeySeed : keyseed;
-
-		(* >IAS 1. Generate quote
+	let DecentSvrProc_intr(encProg : enclaveProg, svrKeySeed : keyseed, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
+		(* >IAS 1. Generate quote *)
 		let signedQuote = GetEnclaveSignedQuote_intr(encProg, SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(prvsKeySeed)) in
 		out(iasCh, signedQuote);
-		(* >IAS 2. Receive IAS Report
+		(* >IAS 2. Receive IAS Report *)
 		in(iasCh, iasRep : signature);
-*)
-		let iasRep = GetSignedIasRep_intr(true, HashEnclave(encProg), SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(iasRepKeySeed)) in
+
 		let IasRep2Signin(iasRes : bool, iasRepEncHash : enclaveHash, iasRepAppData: bitstring) = getmess(iasRep) in
 		if checksign(getmess(iasRep), iasSPkey, iasRep) && iasRes then
 		(
 			(* Successfully received valid IAS report. *)
-			event DecentSvrGotIasRep(encProg);
+			event DecentSvrGotIasRep(encProg, iasSPkey);
 			(*sync 1;*)
 			DecentSvrProcP2_intr(encProg, appCh, iasRep, svrKeySeed, repKeySeed)
 		).

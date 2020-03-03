@@ -1,0 +1,118 @@
+(***************************** library Expansions ******************************)
+
+	(***************************** CV_Common_Declarations ******************************)
+
+expand CV_Common_Declarations(bitstringbot, bottom, emptyStr, keyseed, cleartext, ciphertext).
+
+	(***************************** CV_DSA ******************************)
+
+expand CV_det_signature_types(spkey, sskey, signinput, signature).
+expand CV_det_signature_args(keyseed, spkey, sskey, signinput, signature, sskgen, spkgen, sign, checksign, getmess, getkey).
+
+	(***************************** CV_RSA ******************************)
+
+expand CV_public_key_enc_types(pkey, skey, aenc_seed).
+expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, cleartext, ciphertext, aenc_seed, skgen, pkgen, aenc, aenc_r, adec, ainjbot, aZ).
+
+	(***************************** CV_AEAD ******************************)
+
+expand CV_keygen_types(key).
+expand CV_keygen_args(keyseed, key, kgen).
+
+expand CV_AEAD_types(add_data, enc_seed, empty_add_data).
+expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, sinjbot, sZ).
+
+	(***************************** DecentRA_EnclaveBas ******************************)
+
+expand Decent_Enclave_Basics(spkey, cleartext, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, Bit2Cleartext, EventSubType).
+
+expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput,
+	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin).
+
+	(***************************** DecentRA_LocAtt ******************************)
+
+expand Decent_Local_Attestation(
+	(** CV_ macros  **) keyseed, sskey, spkey, sign, signinput, signature,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
+	(** ECHD Key    **) ecpkey,
+	(** This. Rep   **) LocAttRep, GetLocAttSignedRep).
+
+	(***************************** DecentRA_IasRep ******************************)
+
+expand Decent_IAS_Report(
+	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, getmess, checksign, signinput, signature,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
+	(** This. Vars  **) iasRepKeySeed, encPrvsKeySeed,
+	(** This. Quote **) EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote,
+	(** This. Rep   **) IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep,
+	(** This. Proc  **) IasIssueRep, IasProc_intr).
+
+	(***************************** DecentRA_AuthList ******************************)
+
+expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn).
+
+	(***************************** DecentRA_DecentSvr ******************************)
+
+expand Decent_Decent_Server(
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, enc, dec, sinjbot, empty_add_data,
+	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, Bit2Cleartext,
+	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
+	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
+	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,        GetSignedIasRep_intr, iasRepKeySeed,
+	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
+	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
+	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
+	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
+	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr).
+
+	(***************************** DecentRA_DecentApp ******************************)
+
+expand Decent_Decent_App(
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, enc, dec, sinjbot, empty_add_data,
+	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, Bit2Cleartext, EventSubType,
+	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
+	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
+	(** Decent Svr    **) DecentAppSignin, VrfyDecentAppCertChain_intr,
+	(** Lists         **) AuthList,
+	(** This. AppProc **) DecentAppAccPeer, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr).
+
+(*============================================================================*)
+(******************************* For this process *****************************)
+
+(* Settings:*)
+set attacker = active.
+
+(* Channels: *)
+free svrIasACh : channel.
+free appSvrACh : channel.
+
+(* Enclave Report Keyseeds *)
+const repKeySeedA : keyseed [private].
+
+(* Enclave Server Keyseeds *)
+const svrAKeySeed : keyseed [private].
+
+(* Adversarial Materials *)
+free advEnclave : enclaveProg.
+free advKeySeed : keyseed.
+
+query event(DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)))
+	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed))))
+	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(DecentSvrGotIasRep(advEnclave, spkgen(iasRepKeySeed)))
+	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(advKeySeed))))
+	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(advEnclave), SPKey2Bitstr(spkgen(advKeySeed))))
+	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+
+process
+	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
+	let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in
+	let pub_repKeyA : spkey = spkgen(repKeySeedA) in
+	let pub_svrAKey : spkey = spkgen(svrAKeySeed) in
+
+	(* IAS Server A *) (!IasProc_intr(svrIasACh, iasRepKeySeed, pub_encPrvsKey))
+	|
+	(* Decent Svr A *) (!DecentSvrProc_intr(enclaveDecentSvr, svrAKeySeed, svrIasACh, appSvrACh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedA))
