@@ -182,27 +182,22 @@ def Decent_Enclave_Basics(spkey, cleartext, enclaveProg, enclaveHash, HashEnclav
 }
 
 def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput,
-	DiHeG, DiHeValG, DiHeExp, EcDiHeToPKey, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin) {
+	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin) {
 	(*
 	ecskey = DiHeZ;
 	ecpkey = DiHeExp(DiHeValG, ecskey);
 	EcDiHe(ecpkey, ecskey)
 	*)
 
-	expand CV_Diffie_Hellman_types(DiHeG, ecskey).
+	expand CV_Diffie_Hellman_types(ecpkey, ecskey).
 
-	type ecpkey.
+	expand CV_Diffie_Hellman_args (ecpkey, ecskey, DiHeValG, DiHeExp).
 
-	expand CV_Diffie_Hellman_args (DiHeG, ecskey, DiHeValG, DiHeExp).
+	fun EcDiHeToKey(ecpkey) : key.
 
-	fun EcDiHeToPKey(DiHeG) : ecpkey [typeConverter].
-	fun EcDiHeToKey(DiHeG) : key.
+	letfun ecpkgen(sk : ecskey) = DiHeExp(DiHeValG, sk).
 
-	letfun ecpkgen(sk : ecskey) = EcDiHeToPKey(DiHeExp(DiHeValG, sk)).
-
-	letfun EcDiHeKeyGen(sk : ecskey, pk : ecpkey) =
-		let EcDiHeToPKey(pkVal : DiHeG) = pk in
-		EcDiHeToKey(DiHeExp(pkVal, sk)).
+	letfun EcDiHeKeyGen(sk : ecskey, pk : ecpkey) = EcDiHeToKey(DiHeExp(pk, sk)).
 
 	fun EcPKeyToSignin(ecpkey) : signinput [typeConverter].
 }
@@ -281,10 +276,12 @@ def Decent_Decent_Server(
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
-	(** This. SvrProc **) DecentSvrProc_intr, DecentAppCertSignReq, DecentAppCertToCipher) {
+	(** This. SvrProc **) DecentSvrAccApp, DecentSvrProc_intr) {
 
 	const enclaveDecentSvr : enclaveProg.
 	const decentSvrName : bitstring.
+
+	event DecentSvrAccApp(enclaveProg, enclaveHash).
 
 	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
 
@@ -317,10 +314,6 @@ def Decent_Decent_Server(
 			(auLs = peerAuLs) &&
 			AuthListIsIn(AuthListNewItem(peerHash, expAppName), auLs).
 
-	fun DecentAppCertSignReq(spkey, AuthList) : cleartext [data].
-
-	fun DecentAppCertToCipher(signature, signature) : cleartext [data].
-
 	let DecentSvrProc_intr(encProg : enclaveProg, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
 		new svrKeySeed : keyseed;
 		let svrSPkey = spkgen(svrKeySeed) in
@@ -352,11 +345,12 @@ def Decent_Decent_Server(
 
 				let LocAttRep(appEcPKey : ecpkey, appEncHash : enclaveHash, appAppData : bitstring) = getmess(appLocAttRep) in
 				let locChKey = EcDiHeKeyGen(svrEcSkey, appEcPKey) in
+				event DecentSvrAccApp(encProg, appEncHash);
 
 				(* >app 2. Generate App Certificate *)
 				in(appCh, certSignReqCipher : ciphertext);
-				let sinjbot(DecentAppCertSignReq(appSPkey : spkey, auLs : AuthList)) = dec(certSignReqCipher, empty_add_data, locChKey) in
-				out(appCh, enc(DecentAppCertToCipher(svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, svrSSKey)), empty_add_data, locChKey))
+				let sinjbot(Bit2Cleartext((appSPkey : spkey, auLs : AuthList))) = dec(certSignReqCipher, empty_add_data, locChKey) in
+				out(appCh, enc(Bit2Cleartext((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, svrSSKey))), empty_add_data, locChKey))
 
 				(*sync 2*)
 			)
@@ -374,7 +368,7 @@ def Decent_Decent_App(
 	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, Bit2Cleartext, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
-	(** Decent Svr    **) DecentAppSignin, DecentAppCertSignReq, DecentAppCertToCipher, VrfyDecentAppCertChain_intr,
+	(** Decent Svr    **) DecentAppSignin, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
 	(** This. AppProc **) DecentAppAccPeer, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr) {
 	event DecentAppGotMsg(enclaveProg, bitstring).
@@ -422,9 +416,9 @@ def Decent_Decent_App(
 			let locChKey = EcDiHeKeyGen(appEcSkey, svrEcPKey) in
 
 			(* >svr 2. Request for App Certificate *)
-			out(svrCh, enc(DecentAppCertSignReq(spkgen(appKeySeed), auLs), empty_add_data, locChKey));
+			out(svrCh, enc(Bit2Cleartext((spkgen(appKeySeed), auLs)), empty_add_data, locChKey));
 			in(svrCh, appCertCipher : ciphertext);
-			let sinjbot(DecentAppCertToCipher(svrCert : signature, appCert : signature)) = dec(appCertCipher, empty_add_data, locChKey) in
+			let sinjbot(Bit2Cleartext((svrCert : signature, appCert : signature))) = dec(appCertCipher, empty_add_data, locChKey) in
 
 			DecentAppSvrProcP2_intr(encProg, peerCh, isPeerVrfy, iasSPkey, appKeySeed, svrName, peerName, auLs,
 				svrCert, appCert)
@@ -469,9 +463,9 @@ def Decent_Decent_App(
 			let locChKey = EcDiHeKeyGen(appEcSkey, svrEcPKey) in
 
 			(* >svr 2. Request for App Certificate *)
-			out(svrCh, enc(DecentAppCertSignReq(spkgen(appKeySeed), auLs), empty_add_data, locChKey));
+			out(svrCh, enc(Bit2Cleartext((spkgen(appKeySeed), auLs)), empty_add_data, locChKey));
 			in(svrCh, appCertCipher : ciphertext);
-			let sinjbot(DecentAppCertToCipher(svrCert : signature, appCert : signature)) = dec(appCertCipher, empty_add_data, locChKey) in
+			let sinjbot(Bit2Cleartext((svrCert : signature, appCert : signature))) = dec(appCertCipher, empty_add_data, locChKey) in
 
 			DecentAppCltProcP2_intr(encProg, peerCh, isPeerVrfy, msg, iasSPkey, appKeySeed, svrName, peerName, auLs,
 				svrCert, appCert)
