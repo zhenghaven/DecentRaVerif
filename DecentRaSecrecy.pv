@@ -58,7 +58,7 @@ expand Decent_Decent_Server(
 	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, Bit2Cleartext,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
-	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,        GetSignedIasRep_intr, iasRepKeySeed,
+	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,
 	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
@@ -74,7 +74,7 @@ expand Decent_Decent_App(
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentAppSignin, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
-	(** This. AppProc **) DecentAppAccPeer, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr).
+	(** This. AppProc **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr).
 
 (*============================================================================*)
 (******************************* For this process *****************************)

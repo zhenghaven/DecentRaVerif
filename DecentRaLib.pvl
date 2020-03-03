@@ -267,7 +267,7 @@ def Decent_Decent_Server(
 	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, Bit2Cleartext,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
-	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,        GetSignedIasRep_intr, iasRepKeySeed,
+	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,
 	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
@@ -363,8 +363,9 @@ def Decent_Decent_App(
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentAppSignin, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
-	(** This. AppProc **) DecentAppAccPeer, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr) {
+	(** This. AppProc **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr) {
 	event DecentAppGotMsg(enclaveProg, bitstring).
+	event DecentAppGotCert(enclaveProg, enclaveHash).
 	event DecentAppAccPeer(enclaveProg, enclaveHash).
 
 	let DecentAppSvrProcP2_intr(encProg : enclaveProg, peerCh : channel, isPeerVrfy : bool,
@@ -412,6 +413,7 @@ def Decent_Decent_App(
 			out(svrCh, enc(Bit2Cleartext((spkgen(appKeySeed), auLs)), empty_add_data, locChKey));
 			in(svrCh, appCertCipher : ciphertext);
 			let sinjbot(Bit2Cleartext((svrCert : signature, appCert : signature))) = dec(appCertCipher, empty_add_data, locChKey) in
+			event DecentAppGotCert(encProg, svrEncHash);
 
 			DecentAppSvrProcP2_intr(encProg, peerCh, isPeerVrfy, iasSPkey, appKeySeed, svrName, peerName, auLs,
 				svrCert, appCert)

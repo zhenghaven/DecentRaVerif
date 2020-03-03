@@ -76,8 +76,8 @@ expand Decent_Decent_App(
 	(** Lists         **) AuthList,
 	(** This. AppProc **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppSvrProc_intr, DecentAppCltProc_intr, DecentAppSvrProcP2_intr, DecentAppCltProcP2_intr).
 
-(*============================================================================*)
-(******************************* For this process *****************************)
+	(*============================================================================*)
+	(******************************* For this process *****************************)
 
 (* Settings:*)
 set attacker = active.
@@ -85,6 +85,7 @@ set attacker = active.
 (* Channels: *)
 free svrIasACh : channel.
 free appSvrACh : channel.
+free appAB_Ch : channel.
 
 (* Enclave Report Keyseeds *)
 const repKeySeedA : keyseed [private].
@@ -92,27 +93,41 @@ const repKeySeedA : keyseed [private].
 (* Decent Server Keyseeds *)
 const svrAKeySeed : keyseed [private].
 
+(* Decent App Materials *)
+const enclaveA : enclaveProg.
+const enclaveAName : bitstring.
+const enclaveAKeySeed : keyseed [private].
+
+const enclaveB : enclaveProg.
+const enclaveBName : bitstring.
+const enclaveBKeySeed : keyseed [private].
+
 (* Adversarial Materials *)
 free advEnclave : enclaveProg.
 free advKeySeed : keyseed.
 
-query event(DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed))))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(DecentSvrGotIasRep(advEnclave, spkgen(iasRepKeySeed)))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(advKeySeed))))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(advEnclave), SPKey2Bitstr(spkgen(advKeySeed))))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr)))
+	public_vars pub_authListA, pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(DecentAppGotCert(advEnclave, HashEnclave(enclaveDecentSvr)))
+	public_vars pub_authListA, pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+query event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), spkgen(enclaveAKeySeed),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty))
+	))
+	public_vars pub_authListA, pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
 
 process
+	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty) in
+	let pub_authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), authList0) in
+
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
 	let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in
 	let pub_repKeyA : spkey = spkgen(repKeySeedA) in
 	let pub_svrAKey : spkey = spkgen(svrAKeySeed) in
 
+
 	(* IAS Server A *) (!IasProc_intr(svrIasACh, iasRepKeySeed, pub_encPrvsKey))
 	|
 	(* Decent Svr A *) (!DecentSvrProc_intr(enclaveDecentSvr, svrAKeySeed, svrIasACh, appSvrACh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedA))
+	|
+	(* Decent App A *) (!DecentAppSvrProc_intr(enclaveA, appSvrACh, appAB_Ch, false,
+		pub_iasRepSPKey, repKeySeedA, enclaveAKeySeed, decentSvrName, enclaveBName, pub_authListA))
