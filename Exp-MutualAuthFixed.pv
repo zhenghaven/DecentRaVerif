@@ -2,7 +2,7 @@
 
 	(***************************** CV_Common_Declarations ******************************)
 
-expand CV_Common_Declarations(bitstringbot, bottom, keyseed, cleartext, ciphertext).
+expand CV_Common_Declarations(bitstringbot, bottom, emptyStr, keyseed, cleartext, ciphertext).
 
 	(***************************** CV_DSA ******************************)
 
@@ -19,13 +19,14 @@ expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, clearte
 expand CV_keygen_types(key).
 expand CV_keygen_args(keyseed, key, kgen).
 
-expand CV_AEAD_types(add_data, enc_seed).
+expand CV_AEAD_types(add_data, enc_seed, empty_add_data).
 expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, sinjbot, sZ).
 
 (*************************************** For this process ******************************)
 
 set attacker = active.
 
+fun SPkey2Signin(spkey) : signinput [typeConverter].
 fun Pkey2Signin(pkey) : signinput [typeConverter].
 fun Cipher2Signin(ciphertext) : signinput [typeConverter].
 fun key2Cleartext(key) : cleartext [typeConverter].
@@ -34,58 +35,78 @@ fun bit2Cleartext(bitstring) : cleartext [typeConverter].
 const emptyAddData : add_data.
 
 free c : channel.
+free c2 : channel.
 
-free s : bitstring[private].
-free z : bitstring[private].
+free msg : bitstring[private].
+free advMsg : bitstring.
+
+const caSSKeySeed : keyseed[private].
+const authSSKeySeed : keyseed[private].
 
 event SvrGotKey.
-event SvrGotMalMsg.
-event SvrGotMsg.
+event SvrGotMsg(bitstring).
 
-const svrSSKeySeed : keyseed[private].
+query attacker(msg)
+	public_vars pub_caSPKey, pub_authSPKey, pub_cltSPKey.
+query event(SvrGotMsg(msg))
+	public_vars pub_caSPKey, pub_authSPKey, pub_cltSPKey.
+query event(SvrGotMsg(advMsg))
+	public_vars pub_caSPKey, pub_authSPKey, pub_cltSPKey.
 
-query attacker(s) public_vars pub_svrSPKey.
-query event(SvrGotMalMsg) public_vars pub_svrSPKey.
-query event(SvrGotMsg) public_vars pub_svrSPKey.
-
-let clientA(spkA : spkey, sskA : sskey, svrSPkey : spkey) =
-	in(c, (svrPkey : pkey, svrPkeySign : signature));
-	new kSeed : keyseed;
-	let k = kgen(kSeed) in
-	if checksign(Pkey2Signin(svrPkey), svrSPkey, svrPkeySign) then
+let clientA(svrCh : channel, cltKeySeed : keyseed, caSPkey : spkey) =
+	in(svrCh, (svrSPKey : spkey, svrCert : signature, svrPkey : pkey, svrPkeySign : signature));
+	if checksign(SPkey2Signin(svrSPKey), caSPkey, svrCert) &&
+		checksign(Pkey2Signin(svrPkey), svrSPKey, svrPkeySign) then
 	(
+		new kSeed : keyseed;
+		let k = kgen(kSeed) in
 		let encK = aenc(key2Cleartext(k), svrPkey) in
-		out(c, (encK, sign(Cipher2Signin(encK), sskA)));
-		out(c, enc(bit2Cleartext(s), emptyAddData, k))
+		out(svrCh, (encK, sign(Cipher2Signin(encK), sskgen(cltKeySeed))));
+
+		out(svrCh, enc(bit2Cleartext(msg), emptyAddData, k))
 	).
 
-let serverB(svrSPkey : spkey, svrSSkey : sskey, spkA : spkey) =
+let serverB(caCh : channel, cltCh : channel, authKeySeed : keyseed, cltSPKey : spkey) =
+	new svrSSKeySeed : keyseed;
+	(* 1. Get Cert from CA. *)
+	out(caCh, (spkgen(svrSSKeySeed), sign(SPkey2Signin(spkgen(svrSSKeySeed)), sskgen(authKeySeed))));
+	in(caCh, svrCert : signature);
+
 	new svrSKeySeed : keyseed;
 	let svrSkey = skgen(svrSKeySeed) in
 	let svrPkey = pkgen(svrSKeySeed) in
-	out(c, (svrPkey, sign(Pkey2Signin(svrPkey), svrSSkey)));
-	in(c, (encKey : ciphertext, encKsign : signature));
-	if checksign(Cipher2Signin(encKey), spkA, encKsign) then
+	(* 2. Server sends cert to client *)
+	out(cltCh, (spkgen(svrSSKeySeed), svrCert, svrPkey, sign(Pkey2Signin(svrPkey), sskgen(svrSSKeySeed))));
+
+	(* 3. Server receive signed encrypted k from client *)
+	in(cltCh, (encKey : ciphertext, encKsign : signature));
+	if checksign(Cipher2Signin(encKey), cltSPKey, encKsign) then
 	(
 		let ainjbot(key2Cleartext(k)) = adec(encKey, svrSkey) in
 		event SvrGotKey;
-		in(c, x : ciphertext);
-		let sinjbot(bit2Cleartext(z)) = dec(x, emptyAddData, k) in
-		if (z <> s) then
-		(
-			event SvrGotMalMsg
-		)
-		else
-		(
-			event SvrGotMsg
-		)
+
+		(* 4. Server receive auth-encrypted msg from client *)
+		in(cltCh, x : ciphertext);
+		let sinjbot(bit2Cleartext(z : bitstring)) = dec(x, emptyAddData, k) in
+		event SvrGotMsg(z)
+	).
+
+let CAProc(caCh : channel, caKeySeed : keyseed, authKeySeed : keyseed) =
+	in(caCh, (svrSPKey : spkey, svrKeySign : signature));
+	if checksign(SPkey2Signin(svrSPKey), spkgen(authKeySeed), svrKeySign) then
+	(
+		out(caCh, sign(SPkey2Signin(svrSPKey), sskgen(caKeySeed)))
 	).
 
 process
-	let pub_svrSPKey : spkey = spkgen(svrSSKeySeed) in
+	new cltKeySeed : keyseed;
 
-	let svrSSKey : sskey = sskgen(svrSSKeySeed) in
-	new sskASeed : keyseed;
-	let skA = sskgen(sskASeed) in
-	let pkA = spkgen(sskASeed) in
-	((!clientA(pkA, skA, pub_svrSPKey)) | (!serverB(pub_svrSPKey, svrSSKey, pkA)))
+	let pub_caSPKey : spkey = spkgen(caSSKeySeed) in
+	let pub_authSPKey : spkey = spkgen(authSSKeySeed) in
+	let pub_cltSPKey : spkey = spkgen(cltKeySeed) in
+
+	(!clientA(c, cltKeySeed, pub_caSPKey))
+	|
+	(!serverB(c2, c, authSSKeySeed, pub_cltSPKey))
+	|
+	(!CAProc(c2, caSSKeySeed, authSSKeySeed))
