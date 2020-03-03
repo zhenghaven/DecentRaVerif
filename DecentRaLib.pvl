@@ -220,11 +220,11 @@ def Decent_Local_Attestation(
 
 def Decent_IAS_Report(
 	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, getmess, checksign, signinput, signature,
-	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave, EventSubType,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
 	(** This. Vars  **) iasRepKeySeed, encPrvsKeySeed,
 	(** This. Quote **) EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote,
 	(** This. Rep   **) IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep,
-	(** This. Proc  **) IasProcEvent, IasProc_intr) {
+	(** This. Proc  **) IasIssueRep, IasProc_intr) {
 
 	const iasRepKeySeed : keyseed [private].
 	(*let iasRepSSKey : sskey = sskgen(iasRepKeySeed) in*)
@@ -248,19 +248,15 @@ def Decent_IAS_Report(
 
 	letfun GetSignedIasRep(res : bool, encHash : enclaveHash, appData : bitstring) = GetSignedIasRep_intr(res, encHash, appData, sskgen(iasRepKeySeed)).
 
-	event IasProcEvent(EventSubType).
+	event IasIssueRep(keyseed, bool, enclaveHash, bitstring).
 
-	let IasProc_intr(iasCh : channel, iasKeySeed : keyseed, prvsPKey : spkey, accEve : EventSubType, rejEve : EventSubType) =
+	let IasProc_intr(iasCh : channel, iasKeySeed : keyseed, prvsPKey : spkey) =
 		in(iasCh, signedQuote : signature);
 		let quoteCheckRes = checksign(getmess(signedQuote), prvsPKey, signedQuote) in
 		let EnclaveQuoteSignin(encHash : enclaveHash, appData : bitstring) = getmess(signedQuote) in
 		let iasRep = GetSignedIasRep_intr(quoteCheckRes, encHash, appData, sskgen(iasKeySeed)) in
 		out(iasCh, iasRep);
-
-		if quoteCheckRes then
-		(event IasProcEvent(accEve))
-		else
-		(event IasProcEvent(rejEve)).
+		event IasIssueRep(iasKeySeed, quoteCheckRes, encHash, appData).
 
 }
 
@@ -276,12 +272,13 @@ def Decent_Decent_Server(
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
-	(** This. SvrProc **) DecentSvrAccApp, DecentSvrProc_intr) {
+	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr) {
 
 	const enclaveDecentSvr : enclaveProg.
 	const decentSvrName : bitstring.
 
-	event DecentSvrAccApp(enclaveProg, enclaveHash).
+	event DecentSvrIssueCert(enclaveProg, enclaveHash, spkey, AuthList).
+	event DecentSvrGotIasRep(enclaveProg).
 
 	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
 
@@ -314,46 +311,45 @@ def Decent_Decent_Server(
 			(auLs = peerAuLs) &&
 			AuthListIsIn(AuthListNewItem(peerHash, expAppName), auLs).
 
+	let DecentSvrProcP2_intr(encProg : enclaveProg, appCh : channel, iasRep : signature, svrKeySeed : keyseed, repKeySeed : keyseed) =
+		let svrCert = GetDecentSvrCert(svrKeySeed, iasRep) in
+		(* >app 1. Local Attestation *)
+		in(appCh, appLocAttRep : signature);
+		if checksign(getmess(appLocAttRep), spkgen(repKeySeed), appLocAttRep) then
+		(
+			new svrEcSkey : ecskey;
+			let svrLocAttRep = GetLocAttSignedRep(ecpkgen(svrEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
+			out(appCh, svrLocAttRep);
+
+			let LocAttRep(appEcPKey : ecpkey, appEncHash : enclaveHash, appAppData : bitstring) = getmess(appLocAttRep) in
+			let locChKey = EcDiHeKeyGen(svrEcSkey, appEcPKey) in
+
+			(* >app 2. Generate App Certificate *)
+			in(appCh, certSignReqCipher : ciphertext);
+			let sinjbot(Bit2Cleartext((appSPkey : spkey, auLs : AuthList))) = dec(certSignReqCipher, empty_add_data, locChKey) in
+			out(appCh, enc(Bit2Cleartext((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed)))), empty_add_data, locChKey));
+
+			event DecentSvrIssueCert(encProg, appEncHash, appSPkey, auLs)
+			(*sync 2*)
+		).
+
 	let DecentSvrProc_intr(encProg : enclaveProg, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
 		new svrKeySeed : keyseed;
-		let svrSPkey = spkgen(svrKeySeed) in
-		let svrSSKey = sskgen(svrKeySeed) in
-		let prvsSSkey = sskgen(prvsKeySeed) in
 
 		(* >IAS 1. Generate quote
-		let signedQuote = GetEnclaveSignedQuote_intr(encProg, SPKey2Bitstr(svrSPkey), prvsSSkey) in
+		let signedQuote = GetEnclaveSignedQuote_intr(encProg, SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(prvsKeySeed)) in
 		out(iasCh, signedQuote);
 		(* >IAS 2. Receive IAS Report
 		in(iasCh, iasRep : signature);
 *)
-		let iasRep = GetSignedIasRep_intr(true, HashEnclave(encProg), SPKey2Bitstr(svrSPkey), sskgen(iasRepKeySeed)) in
+		let iasRep = GetSignedIasRep_intr(true, HashEnclave(encProg), SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(iasRepKeySeed)) in
 		let IasRep2Signin(iasRes : bool, iasRepEncHash : enclaveHash, iasRepAppData: bitstring) = getmess(iasRep) in
 		if checksign(getmess(iasRep), iasSPkey, iasRep) && iasRes then
 		(
 			(* Successfully received valid IAS report. *)
-			(* >IAS 3. Generate Decent Server Certificate. *)
-			let svrCert = GetDecentSvrCert(svrKeySeed, iasRep) in
-
+			event DecentSvrGotIasRep(encProg);
 			(*sync 1;*)
-			(* >app 1. Local Attestation *)
-			in(appCh, appLocAttRep : signature);
-			if checksign(getmess(appLocAttRep), spkgen(repKeySeed), appLocAttRep) then
-			(
-				new svrEcSkey : ecskey;
-				let svrLocAttRep = GetLocAttSignedRep(ecpkgen(svrEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
-				out(appCh, svrLocAttRep);
-
-				let LocAttRep(appEcPKey : ecpkey, appEncHash : enclaveHash, appAppData : bitstring) = getmess(appLocAttRep) in
-				let locChKey = EcDiHeKeyGen(svrEcSkey, appEcPKey) in
-				event DecentSvrAccApp(encProg, appEncHash);
-
-				(* >app 2. Generate App Certificate *)
-				in(appCh, certSignReqCipher : ciphertext);
-				let sinjbot(Bit2Cleartext((appSPkey : spkey, auLs : AuthList))) = dec(certSignReqCipher, empty_add_data, locChKey) in
-				out(appCh, enc(Bit2Cleartext((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, svrSSKey))), empty_add_data, locChKey))
-
-				(*sync 2*)
-			)
+			DecentSvrProcP2_intr(encProg, appCh, iasRep, svrKeySeed, repKeySeed)
 		).
 }
 

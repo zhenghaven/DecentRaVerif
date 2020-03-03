@@ -41,11 +41,11 @@ expand Decent_Local_Attestation(
 
 expand Decent_IAS_Report(
 	(** CV_ macros  **) keyseed, sskey, spkey, sskgen, spkgen, sign, getmess, checksign, signinput, signature,
-	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave, EventSubType,
+	(** Encl Basics **) enclaveProg, enclaveHash, HashEnclave,
 	(** This. Vars  **) iasRepKeySeed, encPrvsKeySeed,
 	(** This. Quote **) EnclaveQuoteSignin, GetEnclaveSignedQuote_intr, GetEnclaveSignedQuote,
 	(** This. Rep   **) IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep,
-	(** This. Proc  **) IasProcEvent, IasProc_intr).
+	(** This. Proc  **) IasIssueRep, IasProc_intr).
 
 	(***************************** DecentRA_AuthList ******************************)
 
@@ -63,7 +63,7 @@ expand Decent_Decent_Server(
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
-	(** This. SvrProc **) DecentSvrAccApp, DecentSvrProc_intr).
+	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr).
 
 	(***************************** DecentRA_DecentApp ******************************)
 
@@ -90,12 +90,6 @@ free svrIasBCh : channel.
 free appSvrACh : channel.
 free appSvrBCh : channel.
 free appAB_Ch : channel.
-
-(* Event Sub Types: *)
-const iasAcceptEve : EventSubType.
-const iasRejectEve : EventSubType.
-const RecvCorMsgEve : EventSubType.
-const RecvErrMsgEve : EventSubType.
 
 (* Enclave Report Keyseeds *)
 const repKeySeedA : keyseed [private].
@@ -138,7 +132,7 @@ query event(DecentAppAccPeer(enclaveA, HashEnclave(enclaveC)))
 	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repSPKeyA, pub_repSPKeyB.
 (*query event(testEve1)
 	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repSPKeyA, pub_repSPKeyB.
-query event(DecentSvrAccApp(enclaveDecentSvr, HashEnclave(enclaveA)))
+query event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA)))
 	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repSPKeyA, pub_repSPKeyB.*)
 
 process
@@ -166,9 +160,9 @@ process
 	)
 *)
 
-	(* IAS Server A  (IasProc_intr(svrIasACh, iasRepKeySeed, pub_encPrvsKey, iasAcceptEve, iasRejectEve))
+	(* IAS Server A  (IasProc_intr(svrIasACh, iasRepKeySeed, pub_encPrvsKey))
 	|*)
-	(* IAS Server B  (IasProc_intr(svrIasBCh, iasRepKeySeed, pub_encPrvsKey, iasAcceptEve, iasRejectEve))
+	(* IAS Server B  (IasProc_intr(svrIasBCh, iasRepKeySeed, pub_encPrvsKey))
 	|*)
 	(* Decent Svr A  (DecentSvrProc_intr(enclaveDecentSvr, svrIasACh, appSvrACh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedA))
 	|*)
