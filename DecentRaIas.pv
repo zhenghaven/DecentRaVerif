@@ -92,20 +92,38 @@ const repKeySeedA : keyseed [private].
 (* Decent Server Keyseeds *)
 const svrAKeySeed : keyseed [private].
 
-(* Adversarial Materials *)
-free advEnclave : enclaveProg.
-free advKeySeed : keyseed.
+(******************************* Secrecy assumptions *****************************)
 
+not attacker(sskgen(iasRepKeySeed)).
+not attacker(sskgen(encPrvsKeySeed)).
+not attacker(sskgen(repKeySeedA)).
+not attacker(sskgen(svrAKeySeed)).
+
+(******************************* Queries *****************************)
+
+(* Query 1: event DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)) is reachable. *)
 query event(DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)))
 	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+
+(* Query 2: Query is true if and only if, for all executions of the protocol,
+	if the event DecentSvrGotIasRep(someEnclave, spkgen(someIasRepKeySeed))
+	has been executed, then someEnclave = enclaveDecentSvr and iasRepKeySeed = someIasRepKeySeed *)
+query someEnclave : enclaveProg, someIasRepKeySeed : keyseed;
+	event(DecentSvrGotIasRep(someEnclave, spkgen(someIasRepKeySeed))) ==> (someEnclave = enclaveDecentSvr) && (someIasRepKeySeed = iasRepKeySeed)
+	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+
+(* Query 3: event IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed))) is reachable. *)
 query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed))))
 	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(DecentSvrGotIasRep(advEnclave, spkgen(iasRepKeySeed)))
+
+(* Query 4: Query is true if and only if, for all executions of the protocol,
+	if the event IasIssueRep(iasRepKeySeed, true, HashEnclave(someEnclave), SPKey2Bitstr(spkgen(someKeySeed)))
+	has been executed, then someEnclave = enclaveDecentSvr and iasRepKeySeed = someIasRepKeySeed *)
+query someEnclave : enclaveProg, someKeySeed : keyseed;
+	event(IasIssueRep(iasRepKeySeed, true, HashEnclave(someEnclave), SPKey2Bitstr(spkgen(someKeySeed)))) ==> (someEnclave = enclaveDecentSvr) && (someKeySeed = svrAKeySeed)
 	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(advKeySeed))))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(advEnclave), SPKey2Bitstr(spkgen(advKeySeed))))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+
+(******************************* Honest Process *****************************)
 
 process
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
