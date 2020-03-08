@@ -112,7 +112,7 @@ def CV_AEAD_types(key, add_data, nonce, zero_nonce, dummy_key, IncrNonce) {
 	const zero_nonce : nonce.
 	const dummy_key : key.
 
-	fun IncrNonce(nonce) : nonce [typeConverter].
+	fun IncrNonce(nonce) : nonce [data].
 }
 
 def CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, nonce, enc, enc_r, dec, injbot, Z, dummy_key) {
@@ -339,8 +339,6 @@ def Decent_Decent_Server(
 			appIsInit then
 		(
 			new svrEcSkey : ecskey;
-			let svrNonce0 = zero_nonce in
-			let appNonce0 = zero_nonce in
 			let svrLocAttRep = GetLocAttSignedRep(false, ecpkgen(svrEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
 			out(appCh, svrLocAttRep);
 
@@ -348,13 +346,15 @@ def Decent_Decent_Server(
 
 			(* >app 2. Generate App Certificate *)
 			in(appCh, certSignReqCipher : ciphertext);
-			let certSignReq = dec(certSignReqCipher, (appEcPKey, ecpkgen(svrEcSkey)), locChKey, appNonce0) in
+			let locChNonce0 = zero_nonce in
+			let certSignReq = dec(certSignReqCipher, (appEcPKey, ecpkgen(svrEcSkey)), locChKey, locChNonce0) in
 			if certSignReq <> bottom then
 			(
 				let sinjbot((appSPkey : spkey, auLs : AuthList)) = certSignReq in
 				event DecentSvrIssueCert(encProg, appEncHash, repKeySeed, appSPkey, auLs);
 
-				out(appCh, enc((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed))), (ecpkgen(svrEcSkey), appEcPKey), locChKey, svrNonce0))
+				let locChNonce1 = IncrNonce(locChNonce0) in
+				out(appCh, enc((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed))), (ecpkgen(svrEcSkey), appEcPKey), locChKey, locChNonce1))
 				(*sync 2*)
 			)
 		).
@@ -409,7 +409,6 @@ def Decent_Decent_App(
 				event DecentAppAccPeer(encProg, peerHash);
 
 				new myEcSKey : ecskey;
-				let peerNonce0 = zero_nonce in
 				out(peerCh, (ecpkgen(myEcSKey), sign(EcPKeyToSignin(ecpkgen(myEcSKey)), sskgen(appKeySeed)), svrCert, appCert));
 
 				(* >peer 2. Calc shared secret *)
@@ -417,7 +416,8 @@ def Decent_Decent_App(
 
 				(* >peer 3. Recv secret from client *)
 				in(peerCh, cipherMsg : ciphertext);
-				let sinjbot(msg : bitstring) = dec(cipherMsg, (peerEcPKey, ecpkgen(myEcSKey)), peerChKey, peerNonce0) in
+				let peerChNonce0 = zero_nonce in
+				let sinjbot(msg : bitstring) = dec(cipherMsg, (peerEcPKey, ecpkgen(myEcSKey)), peerChKey, peerChNonce0) in
 				event DecentAppGotMsg(encProg, msg)
 			)
 		).
@@ -428,8 +428,6 @@ def Decent_Decent_App(
 		(*sync 1;*)
 		(* >svr 1. Local Attestation *)
 		new appEcSkey : ecskey;
-		let svrNonce0 = zero_nonce in
-		let appNonce0 = zero_nonce in
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(appEcSkey), encProg, (spkgen(appKeySeed), auLs), sskgen(repKeySeed)) in
 		out(svrCh, appLocAttRep);
 		in(svrCh, svrLocAttRep : signature);
@@ -440,9 +438,11 @@ def Decent_Decent_App(
 			let locChKey = EcDiHeKeyGen(appEcSkey, svrEcPKey) in
 
 			(* >svr 2. Request for App Certificate *)
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(appEcSkey), svrEcPKey), locChKey, appNonce0));
+			let locChNonce0 = zero_nonce in
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(appEcSkey), svrEcPKey), locChKey, locChNonce0));
 			in(svrCh, appCertCipher : ciphertext);
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(appEcSkey)), locChKey, svrNonce0) in
+			let locChNonce1 = IncrNonce(locChNonce0) in
+			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(appEcSkey)), locChKey, locChNonce1) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
@@ -459,7 +459,6 @@ def Decent_Decent_App(
 		(*sync 2;*)
 		(* >peer 1. Verify peer's certificate chain *)
 		new myEcSKey : ecskey;
-		let myNonce0 = zero_nonce in
 		out(peerCh, (ecpkgen(myEcSKey), sign(EcPKeyToSignin(ecpkgen(myEcSKey)), sskgen(appKeySeed)), svrCert, appCert));
 		if not(isPeerVrfy) then
 		(
@@ -474,7 +473,8 @@ def Decent_Decent_App(
 				let peerChKey = EcDiHeKeyGen(myEcSKey, peerEcPKey) in
 
 				(* >peer 3. Send secret to server *)
-				out(peerCh, enc(msg, (ecpkgen(myEcSKey), peerEcPKey), peerChKey, myNonce0))
+				let peerChNonce0 = zero_nonce in
+				out(peerCh, enc(msg, (ecpkgen(myEcSKey), peerEcPKey), peerChKey, peerChNonce0))
 			)
 		).
 
@@ -484,8 +484,6 @@ def Decent_Decent_App(
 		(*sync 1;*)
 		(* >svr 1. Local Attestation *)
 		new appEcSkey : ecskey;
-		let svrNonce0 = zero_nonce in
-		let appNonce0 = zero_nonce in
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(appEcSkey), encProg, (spkgen(appKeySeed), auLs), sskgen(repKeySeed)) in
 		out(svrCh, appLocAttRep);
 		in(svrCh, svrLocAttRep : signature);
@@ -496,9 +494,11 @@ def Decent_Decent_App(
 			let locChKey = EcDiHeKeyGen(appEcSkey, svrEcPKey) in
 
 			(* >svr 2. Request for App Certificate *)
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(appEcSkey), svrEcPKey), locChKey, appNonce0));
+			let locChNonce0 = zero_nonce in
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(appEcSkey), svrEcPKey), locChKey, locChNonce0));
 			in(svrCh, appCertCipher : ciphertext);
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(appEcSkey)), locChKey, svrNonce0) in
+			let locChNonce1 = IncrNonce(locChNonce0) in
+			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(appEcSkey)), locChKey, locChNonce1) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
