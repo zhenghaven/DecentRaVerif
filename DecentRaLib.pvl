@@ -428,7 +428,7 @@ def Decent_Decent_App(
 		(*sync 1;*)
 		(* >svr 1. Local Attestation *)
 		new appEcSkey : ecskey;
-		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(appEcSkey), encProg, (spkgen(appKeySeed), auLs), sskgen(repKeySeed)) in
+		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(appEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
 		out(svrCh, appLocAttRep);
 		in(svrCh, svrLocAttRep : signature);
 		let LocAttRep(svrIsInit : bool, svrEcPKey : ecpkey, svrEncHash : enclaveHash, svrAppData : bitstring) = getmess(svrLocAttRep) in
@@ -484,7 +484,7 @@ def Decent_Decent_App(
 		(*sync 1;*)
 		(* >svr 1. Local Attestation *)
 		new appEcSkey : ecskey;
-		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(appEcSkey), encProg, (spkgen(appKeySeed), auLs), sskgen(repKeySeed)) in
+		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(appEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
 		out(svrCh, appLocAttRep);
 		in(svrCh, svrLocAttRep : signature);
 		let LocAttRep(svrIsInit : bool, svrEcPKey : ecpkey, svrEncHash : enclaveHash, svrAppData : bitstring) = getmess(svrLocAttRep) in
