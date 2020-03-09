@@ -159,9 +159,9 @@ process
 			new enclaveKeySeed : keyseed;
 			let iasRep =
 				GetSignedIasRep_intr(true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(iasRepKeySeed)) in
-			(* Decent SvrA Ph2 *) (DecentSvrProcP2_intr(enclaveDecentSvr, svrKeySeed, appSvrACh, iasRep, repKeySeed))
+			(* Decent SvrA Ph2 *) (!DecentSvrProcP2_intr(enclaveDecentSvr, svrKeySeed, appSvrACh, iasRep, repKeySeed))
 			|
-			(* Decent App A    *) (DecentAppSvrProc_intr(enclaveA, appSvrACh, appAB_Ch, false,
+			(* Decent App A    *) (!DecentAppSvrProc_intr(enclaveA, appSvrACh, appAB_Ch, false,
 				pub_iasRepSPKey, repKeySeed, enclaveKeySeed, decentSvrName, enclaveBName, pub_authListA))
 		)
 	)
