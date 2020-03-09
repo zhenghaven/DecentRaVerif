@@ -89,78 +89,79 @@ free svrIasACh : channel.
 free appSvrACh : channel.
 free appAB_Ch : channel.
 
-(* Enclave Report Keyseeds *)
-free repKeySeedA : keyseed [private].
-
-(* Decent Server Keyseeds *)
-free svrAKeySeed : keyseed [private].
-
 (* Decent App Materials *)
 free enclaveA : enclaveProg.
 free enclaveAName : bitstring.
-free enclaveAKeySeed : keyseed [private].
 
 free enclaveB : enclaveProg.
 free enclaveBName : bitstring.
-free enclaveBKeySeed : keyseed [private].
 
 (******************************* Secrecy assumptions *****************************)
 
 not attacker(iasRepKeySeed).
 not attacker(encPrvsKeySeed).
-not attacker(repKeySeedA).
-not attacker(svrAKeySeed).
-not attacker(enclaveAKeySeed).
-not attacker(enclaveBKeySeed).
+not attacker(new svrKeySeed).
+not attacker(new repKeySeed).
+not attacker(new enclaveKeySeed).
 
 not attacker(sskgen(iasRepKeySeed)).
 not attacker(sskgen(encPrvsKeySeed)).
-not attacker(sskgen(repKeySeedA)).
-not attacker(sskgen(svrAKeySeed)).
-not attacker(sskgen(enclaveAKeySeed)).
-not attacker(sskgen(enclaveBKeySeed)).
+not attacker(sskgen(new svrKeySeed)).
+not attacker(sskgen(new repKeySeed)).
+not attacker(sskgen(new enclaveKeySeed)).
 
 (******************************* Queries *****************************)
 
-(* Query 1: event DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), enclaveAKeySeed) is reachable. *)
-query let auLs =
+(* Query 1: event DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), enclaveSPKeySeed) is reachable. *)
+query let enclaveSPKeySeed = new enclaveKeySeed in
+	let auLs =
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), enclaveAKeySeed, auLs)).
+	event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), enclaveSPKeySeed, auLs)).
 
-(* Query 2: event DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), repKeySeedA, spkgen(enclaveAKeySeed), auLs) is reachable. *)
-query let auLs =
+(* Query 2: event DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), repSPKeySeed, enclaveSPKey, auLs) is reachable. *)
+query let enclaveSPKey = spkgen(new enclaveKeySeed) in
+	let repSPKeySeed = new repKeySeed in
+	let auLs =
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), repKeySeedA, spkgen(enclaveAKeySeed), auLs)).
+	event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), repSPKeySeed, enclaveSPKey, auLs)).
 
 (* Query 3:  *)
 query anyEnclave : enclaveProg, anyEncKeyseed : keyseed, anyAuLs : AuthList;
+	let repSPKeySeed = new repKeySeed in
 	let auLs =
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
 	inj-event(DecentAppGotCert(anyEnclave, HashEnclave(enclaveDecentSvr), anyEncKeyseed, anyAuLs)) ==>
-	inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), repKeySeedA, spkgen(anyEncKeyseed), anyAuLs)).
+	inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), repSPKeySeed, spkgen(anyEncKeyseed), anyAuLs)).
 
 (* Query 4:  *)
 query anyEnclave : enclaveProg, anyEncKeyseed : keyseed, anyAuLs : AuthList;
+	let enclaveSPKeySeed = new enclaveKeySeed in
+	let repSPKeySeed = new repKeySeed in
 	let auLs =
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), repKeySeedA, spkgen(anyEncKeyseed), anyAuLs)) ==>
-	(anyEnclave = enclaveA) && (anyEncKeyseed = enclaveAKeySeed) && (anyAuLs = auLs).
+	event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), repSPKeySeed, spkgen(anyEncKeyseed), anyAuLs)) ==>
+	(anyEnclave = enclaveA) && (anyEncKeyseed = enclaveSPKeySeed) && (anyAuLs = auLs).
 
 process
 	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty) in
 	let pub_authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), authList0) in
 
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
-	let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in
-	let pub_encASPKey : spkey = spkgen(enclaveAKeySeed) in
 
-	let iasRep = GetSignedIasRep_intr(true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed)), sskgen(iasRepKeySeed)) in
-
-	(* Decent SvrA Ph2 *) (!DecentSvrProcP2_intr(enclaveDecentSvr, svrAKeySeed, appSvrACh, iasRep, repKeySeedA))
-	|
-	(* Decent App A    *) (!DecentAppSvrProc_intr(enclaveA, appSvrACh, appAB_Ch, false,
-		pub_iasRepSPKey, repKeySeedA, enclaveAKeySeed, decentSvrName, enclaveBName, pub_authListA))
+	(!
+		(
+			new svrKeySeed : keyseed;
+			new repKeySeed : keyseed;
+			new enclaveKeySeed : keyseed;
+			let iasRep =
+				GetSignedIasRep_intr(true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(iasRepKeySeed)) in
+			(* Decent SvrA Ph2 *) (DecentSvrProcP2_intr(enclaveDecentSvr, svrKeySeed, appSvrACh, iasRep, repKeySeed))
+			|
+			(* Decent App A    *) (DecentAppSvrProc_intr(enclaveA, appSvrACh, appAB_Ch, false,
+				pub_iasRepSPKey, repKeySeed, enclaveKeySeed, decentSvrName, enclaveBName, pub_authListA))
+		)
+	)
