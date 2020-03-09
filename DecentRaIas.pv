@@ -19,15 +19,16 @@ expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, clearte
 expand CV_keygen_types(key).
 expand CV_keygen_args(keyseed, key, kgen).
 
-expand CV_AEAD_types(add_data, enc_seed, empty_add_data).
-expand CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, sinjbot, sZ).
+expand CV_AEAD_types(key, add_data, nonce, zero_nonce, dummy_key, IncrNonce).
+expand CV_AEAD_args(key, bitstringbot, bottom, bitstring, ciphertext, bitstring, nonce, enc, enc, dec, sinjbot, sZ, dummy_key).
 
 	(***************************** DecentRA_EnclaveBas ******************************)
 
-expand Decent_Enclave_Basics(spkey, cleartext, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, Bit2Cleartext, EventSubType).
+expand Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType).
 
-expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput,
-	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin).
+expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput, bitstring, ciphertext, bitstring, nonce, enc,
+	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin,
+	dummy_ecpkey, GetEcPKeyA, GetEcPKeyB).
 
 	(***************************** DecentRA_LocAtt ******************************)
 
@@ -54,8 +55,8 @@ expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, Au
 	(***************************** DecentRA_DecentSvr ******************************)
 
 expand Decent_Decent_Server(
-	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, enc, dec, sinjbot, empty_add_data,
-	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, Bit2Cleartext,
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, bitstring, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
+	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,
@@ -68,8 +69,8 @@ expand Decent_Decent_Server(
 	(***************************** DecentRA_DecentApp ******************************)
 
 expand Decent_Decent_App(
-	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, enc, dec, sinjbot, empty_add_data,
-	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, Bit2Cleartext, EventSubType,
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, bitstring, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
+	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentAppSignin, VrfyDecentAppCertChain_intr,
@@ -86,51 +87,51 @@ set attacker = active.
 free svrIasACh : channel.
 free appSvrACh : channel.
 
-(* Enclave Report Keyseeds *)
-const repKeySeedA : keyseed [private].
-
-(* Decent Server Keyseeds *)
-const svrAKeySeed : keyseed [private].
-
 (******************************* Secrecy assumptions *****************************)
+
+not attacker(iasRepKeySeed).
+not attacker(encPrvsKeySeed).
+not attacker(new repKeySeed).
+not attacker(new svrKeySeed).
 
 not attacker(sskgen(iasRepKeySeed)).
 not attacker(sskgen(encPrvsKeySeed)).
-not attacker(sskgen(repKeySeedA)).
-not attacker(sskgen(svrAKeySeed)).
+not attacker(sskgen(new repKeySeed)).
+not attacker(sskgen(new svrKeySeed)).
 
 (******************************* Queries *****************************)
 
-(* Query 1: event DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)) is reachable. *)
-query event(DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-
-(* Query 2: Query is true if and only if, for all executions of the protocol,
-	if the event DecentSvrGotIasRep(someEnclave, spkgen(someIasRepKeySeed))
-	has been executed, then someEnclave = enclaveDecentSvr and iasRepKeySeed = someIasRepKeySeed *)
-query someEnclave : enclaveProg, someIasRepKeySeed : keyseed;
-	event(DecentSvrGotIasRep(someEnclave, spkgen(someIasRepKeySeed))) ==> (someEnclave = enclaveDecentSvr) && (someIasRepKeySeed = iasRepKeySeed)
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
-
-(* Query 3: event IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed))) is reachable. *)
-query event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrAKeySeed))))
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+(* Query 3: event IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(svrSPKey)) is reachable. *)
+query let svrSPKey = spkgen(new svrKeySeed) in
+	event(IasIssueRep(iasRepKeySeed, true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(svrSPKey))).
 
 (* Query 4: Query is true if and only if, for all executions of the protocol,
-	if the event IasIssueRep(iasRepKeySeed, true, HashEnclave(someEnclave), SPKey2Bitstr(spkgen(someKeySeed)))
-	has been executed, then someEnclave = enclaveDecentSvr and iasRepKeySeed = someIasRepKeySeed *)
-query someEnclave : enclaveProg, someKeySeed : keyseed;
-	event(IasIssueRep(iasRepKeySeed, true, HashEnclave(someEnclave), SPKey2Bitstr(spkgen(someKeySeed)))) ==> (someEnclave = enclaveDecentSvr) && (someKeySeed = svrAKeySeed)
-	public_vars pub_iasRepSPKey, pub_encPrvsKey, pub_repKeyA, pub_svrAKey.
+if the event IasIssueRep(iasRepKeySeed, true, HashEnclave(anyEnclave), SPKey2Bitstr(anySPKey))
+has been executed, then anyEnclave = enclaveDecentSvr and anySPKey = svrSPKey *)
+query anyEnclave : enclaveProg, anySPKey : spkey;
+	let svrSPKey = spkgen(new svrKeySeed) in
+	event(IasIssueRep(iasRepKeySeed, true, HashEnclave(anyEnclave), SPKey2Bitstr(anySPKey))) ==>
+	(anyEnclave = enclaveDecentSvr) && (anySPKey = svrSPKey).
+
+(* Query 1: event DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed)) is reachable. *)
+query event(DecentSvrGotIasRep(enclaveDecentSvr, spkgen(iasRepKeySeed))).
+
+(* Query 2: Query is true if and only if, for all executions of the protocol,
+	if the event DecentSvrGotIasRep(anyEnclave, spkgen(anyIasRepKeySeed))
+	has been executed, then anyEnclave = enclaveDecentSvr and iasRepKeySeed = anyIasRepKeySeed *)
+query anyEnclave : enclaveProg, anyIasRepKeySeed : keyseed;
+	event(DecentSvrGotIasRep(anyEnclave, spkgen(anyIasRepKeySeed))) ==>
+	(anyEnclave = enclaveDecentSvr) && (anyIasRepKeySeed = iasRepKeySeed).
 
 (******************************* Honest Process *****************************)
 
 process
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
 	let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in
-	let pub_repKeyA : spkey = spkgen(repKeySeedA) in
-	let pub_svrAKey : spkey = spkgen(svrAKeySeed) in
 
 	(* IAS Server A *) (!IasProc_intr(svrIasACh, iasRepKeySeed, pub_encPrvsKey))
 	|
-	(* Decent Svr A *) (!DecentSvrProc_intr(enclaveDecentSvr, svrAKeySeed, svrIasACh, appSvrACh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedA))
+	(* Decent Svr A *) (!
+		new svrKeySeed : keyseed;
+		new repKeySeed : keyseed;
+		(DecentSvrProc_intr(enclaveDecentSvr, svrKeySeed, svrIasACh, appSvrACh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeed)))

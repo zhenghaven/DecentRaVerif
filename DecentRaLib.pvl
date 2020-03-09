@@ -297,7 +297,7 @@ def Decent_Decent_Server(
 	const decentSvrName : bitstring.
 
 	event DecentSvrIssueCert(enclaveProg, enclaveHash, keyseed, spkey, AuthList).
-	event DecentSvrGotIasRep(enclaveProg, spkey, bool).
+	event DecentSvrGotIasRep(enclaveProg, spkey).
 
 	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
 
@@ -370,7 +370,7 @@ def Decent_Decent_Server(
 		if checksign(getmess(iasRep), iasSPkey, iasRep) && iasRes then
 		(
 			(* Successfully received valid IAS report. *)
-			event DecentSvrGotIasRep(encProg, iasSPkey, (SPKey2Bitstr(spkgen(svrKeySeed)) = iasRepAppData));
+			event DecentSvrGotIasRep(encProg, iasSPkey);
 			(*sync 1;*)
 			DecentSvrProcP2_intr(encProg, svrKeySeed, appCh, iasRep, repKeySeed)
 		).
