@@ -289,7 +289,7 @@ def Decent_Decent_Server(
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,
-	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn, RecvList, RecvListNewItem, RecvListIsIn,
+	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
@@ -324,27 +324,25 @@ def Decent_Decent_Server(
 
 	letfun GetDecentAppCert(appHash : enclaveHash, appSPKey : spkey, auLs : AuthList, svrSSKey : sskey) = sign(DecentAppSignin(appHash, appSPKey, auLs), svrSSKey).
 
-	letfun VrfyDecentAppCertChain_intr(peerAppCert : signature, peerSvrCert : signature, iasSPkey : spkey, svrName : bitstring, expAppName : bitstring, auLs : AuthList, reLs : RecvList) =
+	letfun VrfyDecentAppCertChain_intr(peerAppCert : signature, peerSvrCert : signature, iasSPkey : spkey, svrName : bitstring, expAppName : bitstring, auLs : AuthList) =
 		let DecentSvrSignin(peerSvrSPKey : spkey, peerIasRep : signature) = getmess(peerSvrCert) in
 		let DecentAppSignin(peerHash : enclaveHash, peerSPKey : spkey, peerAuLs : AuthList) = getmess(peerAppCert) in
 		VrfyDecentSvrCert_intr(peerSvrCert, svrName, auLs, iasSPkey) &&
 			checksign(getmess(peerAppCert), peerSvrSPKey, peerAppCert) &&
 			(auLs = peerAuLs) &&
-			AuthListIsIn(AuthListNewItem(peerHash, expAppName), auLs) &&
-			not(RecvListIsIn(RecvListNewItem(peerHash), reLs)).
+			AuthListIsIn(AuthListNewItem(peerHash, expAppName), auLs).
 
 	let DecentSvrProcP2_intr(encProg : enclaveProg, svrKeySeed : keyseed, appCh : channel, iasRep : signature, repKeySeed : keyseed) =
 		let svrCert = GetDecentSvrCert(svrKeySeed, iasRep) in
 		(* >app 1. Local Attestation *)
+		new svrEcSkey : ecskey;
+		let svrLocAttRep = GetLocAttSignedRep(false, ecpkgen(svrEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
+		out(appCh, svrLocAttRep);
 		in(appCh, appLocAttRep : signature);
 		let LocAttRep(appIsInit : bool, appEcPKey : ecpkey, appEncHash : enclaveHash, appAppData : bitstring) = getmess(appLocAttRep) in
 		if checksign(getmess(appLocAttRep), spkgen(repKeySeed), appLocAttRep) &&
 			appIsInit then
 		(
-			new svrEcSkey : ecskey;
-			let svrLocAttRep = GetLocAttSignedRep(false, ecpkgen(svrEcSkey), encProg, emptyStr, sskgen(repKeySeed)) in
-			out(appCh, svrLocAttRep);
-
 			let locChKey = EcDiHeKeyGen(svrEcSkey, appEcPKey) in
 
 			(* >app 2. Generate App Certificate *)
@@ -391,9 +389,9 @@ def Decent_Decent_App(
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
-	(** Lists         **) AuthList, RecvList, RecvListToStr, RecvListEmpty,
-	(** This.Event    **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppGotRels,
-	(** This.RecvProc **) DecentRevc_X_ProcP3_intr, DecentRevc_Auls_ProcP2_intr, DecentRevc_Auls_Proc_intr,
+	(** Lists         **) AuthList,
+	(** This.Event    **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppGotRels, DecentAppTest,
+	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
 	(** This.AppProc  **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
 	(** This.AppProc  **) DecentApp_X_X_Clt_ProcP4_intr, DecentApp_X_Auls_Clt_ProcP3_intr, DecentApp_Auls_Auls_Clt_ProcP2_intr, DecentApp_Auls_Auls_Clt_Proc_intr
 	) {
@@ -401,13 +399,16 @@ def Decent_Decent_App(
 	event DecentAppGotMsg(enclaveProg, bitstring).
 	event DecentAppGotCert(enclaveProg, enclaveHash, keyseed, AuthList).
 	event DecentAppAccPeer(enclaveProg, enclaveHash).
-	event DecentAppGotRels(enclaveProg).
+	event DecentAppGotRels(enclaveProg, bitstring).
+
+	event DecentAppTest(enclaveProg, bitstring, enclaveHash, bool).
 
 (*
 	Get cert from svr   verify peer's cert    Send recv list
 	DecentRevc_Proc -> DecentRevc_ProcP2 -> DecentRevc_ProcP3
 
-	DecentVrfy_Auls_Proc
+	Get cert from svr   verify peer's cert    Send/issue cert
+	DecentVrfy_Proc -> DecentVrfy_ProcP2 -> DecentVrfy_ProcP3
 
 	    Get cert from server            Get revc list from revcer        verify peer's cert (Auls)        recv msg from clt
 	DecentApp_Auls_Auls_Svr_Proc -> DecentApp_Auls_Auls_Svr_ProcP2 -> DecentApp_X_Auls_Svr_ProcP3 -> DecentApp_X_X_Svr_ProcP4
@@ -434,12 +435,12 @@ def Decent_Decent_App(
 	*)
 
 	(* Sends revocation list. *)
-	let DecentRevc_Auls_ProcP2_intr(peerCh : channel, appKeySeed : keyseed, reLs : RecvList, svrCert : signature, appCert : signature) =
-		out(peerCh, (reLs, sign(StrToSignin(RecvListToStr(reLs)), sskgen(appKeySeed)), svrCert, appCert)).
+	let DecentRevc_ProcP2_intr(peerCh : channel, appKeySeed : keyseed, reLs : bitstring, svrCert : signature, appCert : signature) =
+		out(peerCh, (reLs, sign(StrToSignin(reLs), sskgen(appKeySeed)), svrCert, appCert)).
 
 	(* Get certificate from Decent Server *)
-	let DecentRevc_Auls_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel,
-		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, auLs : AuthList, reLs : RecvList) =
+	let DecentRevc_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel,
+		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, auLs : AuthList, reLs : bitstring) =
 		(*sync 1;*)
 		(* >svr 1. Local Attestation *)
 		new appEcSkey : ecskey;
@@ -462,7 +463,7 @@ def Decent_Decent_App(
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
 
-				DecentRevc_Auls_ProcP2_intr(peerCh, appKeySeed, reLs, svrCert, appCert)
+				DecentRevc_ProcP2_intr(peerCh, appKeySeed, reLs, svrCert, appCert)
 			)
 		).
 
@@ -487,13 +488,13 @@ def Decent_Decent_App(
 
 	(* Verify peer's certificate chain *)
 	let DecentApp_X_Auls_Svr_ProcP3_intr(encProg : enclaveProg, peerCh : channel, iasSPkey : spkey, appKeySeed : keyseed,
-		svrName : bitstring, peerName : bitstring, auLs : AuthList, reLs : RecvList, svrCert : signature, appCert : signature) =
+		svrName : bitstring, peerName : bitstring, auLs : AuthList, reLs : bitstring, myEcSKey : ecskey) =
 
-		new myEcSKey : ecskey;
-		out(peerCh, (ecpkgen(myEcSKey), sign(EcPKeyToSignin(ecpkgen(myEcSKey)), sskgen(appKeySeed)), svrCert, appCert));
 		in(peerCh, (peerEcPKey : ecpkey, peerEcKeySign : signature, peerSvrCert : signature, peerCert : signature));
 		let DecentAppSignin(peerHash : enclaveHash, peerSPKey : spkey, peerAuLs : AuthList) = getmess(peerCert) in
-		if VrfyDecentAppCertChain_intr(peerCert, peerSvrCert, iasSPkey, svrName, peerName, auLs, reLs) &&
+		let (revokedEnc1 : enclaveHash, revokedEnc2 : enclaveHash) = reLs in
+		if VrfyDecentAppCertChain_intr(peerCert, peerSvrCert, iasSPkey, svrName, peerName, auLs) &&
+			(revokedEnc1 <> peerHash) && (revokedEnc2 <> peerHash) &&
 			checksign(EcPKeyToSignin(peerEcPKey), peerSPKey, peerEcKeySign) then
 		(
 			event DecentAppAccPeer(encProg, peerHash);
@@ -505,16 +506,18 @@ def Decent_Decent_App(
 	let DecentApp_Auls_Auls_Svr_ProcP2_intr(encProg : enclaveProg, peerCh : channel, recvCh : channel, iasSPkey : spkey, appKeySeed : keyseed,
 		svrName : bitstring, recvName : bitstring, peerName : bitstring, auLs : AuthList, svrCert : signature, appCert : signature) =
 
-		in(recvCh, (reLs : RecvList, reLsSign : signature, recvSvrCert : signature, recvCert : signature));
+		in(recvCh, (reLs : bitstring, reLsSign : signature, recvSvrCert : signature, recvCert : signature));
 
 		let DecentAppSignin(recvHash : enclaveHash, recvSPKey : spkey, recvAuLs : AuthList) = getmess(recvCert) in
-		if VrfyDecentAppCertChain_intr(recvCert, recvSvrCert, iasSPkey, svrName, recvName, auLs, RecvListEmpty) &&
-			checksign(StrToSignin(RecvListToStr(reLs)), recvSPKey, reLsSign) then
+		if VrfyDecentAppCertChain_intr(recvCert, recvSvrCert, iasSPkey, svrName, recvName, auLs) &&
+			checksign(StrToSignin(reLs), recvSPKey, reLsSign) then
 		(
-			event DecentAppGotRels(encProg);
+			event DecentAppGotRels(encProg, reLs);
 
+			new myEcSKey : ecskey;
+			out(peerCh, (ecpkgen(myEcSKey), sign(EcPKeyToSignin(ecpkgen(myEcSKey)), sskgen(appKeySeed)), svrCert, appCert));
 			DecentApp_X_Auls_Svr_ProcP3_intr(encProg, peerCh, iasSPkey, appKeySeed,
-				svrName, peerName, auLs, reLs, svrCert, appCert)
+				svrName, peerName, auLs, reLs, myEcSKey)
 		).
 
 	let DecentApp_Auls_Auls_Svr_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel, recvCh : channel,
@@ -566,12 +569,13 @@ def Decent_Decent_App(
 
 	(* Verify peer's certificate chain *)
 	let DecentApp_X_Auls_Clt_ProcP3_intr(encProg : enclaveProg, peerCh : channel, msg : bitstring, iasSPkey : spkey, appKeySeed : keyseed,
-		svrName : bitstring, peerName : bitstring, auLs : AuthList, reLs : RecvList, svrCert : signature, appCert : signature) =
-		new myEcSKey : ecskey;
-		out(peerCh, (ecpkgen(myEcSKey), sign(EcPKeyToSignin(ecpkgen(myEcSKey)), sskgen(appKeySeed)), svrCert, appCert));
+		svrName : bitstring, peerName : bitstring, auLs : AuthList, reLs : bitstring, myEcSKey : ecskey) =
+
 		in(peerCh, (peerEcPKey : ecpkey, peerEcKeySign : signature, peerSvrCert : signature, peerCert : signature));
 		let DecentAppSignin(peerHash : enclaveHash, peerSPKey : spkey, peerAuLs : AuthList) = getmess(peerCert) in
-		if VrfyDecentAppCertChain_intr(peerCert, peerSvrCert, iasSPkey, svrName, peerName, auLs, reLs) &&
+		let (revokedEnc1 : enclaveHash, revokedEnc2 : enclaveHash) = reLs in
+		if VrfyDecentAppCertChain_intr(peerCert, peerSvrCert, iasSPkey, svrName, peerName, auLs) &&
+			(revokedEnc1 <> peerHash) && (revokedEnc2 <> peerHash) &&
 			checksign(EcPKeyToSignin(peerEcPKey), peerSPKey, peerEcKeySign) then
 		(
 			event DecentAppAccPeer(encProg, peerHash);
@@ -583,16 +587,18 @@ def Decent_Decent_App(
 	let DecentApp_Auls_Auls_Clt_ProcP2_intr(encProg : enclaveProg, peerCh : channel, recvCh : channel, msg : bitstring, iasSPkey : spkey, appKeySeed : keyseed,
 		svrName : bitstring, recvName : bitstring, peerName : bitstring, auLs : AuthList, svrCert : signature, appCert : signature) =
 
-		in(recvCh, (reLs : RecvList, reLsSign : signature, recvSvrCert : signature, recvCert : signature));
+		in(recvCh, (reLs : bitstring, reLsSign : signature, recvSvrCert : signature, recvCert : signature));
 
 		let DecentAppSignin(recvHash : enclaveHash, recvSPKey : spkey, recvAuLs : AuthList) = getmess(recvCert) in
-		if VrfyDecentAppCertChain_intr(recvCert, recvSvrCert, iasSPkey, svrName, recvName, auLs, RecvListEmpty) &&
-			checksign(StrToSignin(RecvListToStr(reLs)), recvSPKey, reLsSign) then
+		if VrfyDecentAppCertChain_intr(recvCert, recvSvrCert, iasSPkey, svrName, recvName, auLs) &&
+			checksign(StrToSignin(reLs), recvSPKey, reLsSign) then
 		(
-			event DecentAppGotRels(encProg);
+			event DecentAppGotRels(encProg, reLs);
 
+			new myEcSKey : ecskey;
+			out(peerCh, (ecpkgen(myEcSKey), sign(EcPKeyToSignin(ecpkgen(myEcSKey)), sskgen(appKeySeed)), svrCert, appCert));
 			DecentApp_X_Auls_Clt_ProcP3_intr(encProg, peerCh, msg, iasSPkey, appKeySeed,
-				svrName, peerName, auLs, reLs, svrCert, appCert)
+				svrName, peerName, auLs, reLs, myEcSKey)
 		).
 
 	let DecentApp_Auls_Auls_Clt_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel, recvCh : channel, msg : bitstring,
