@@ -166,14 +166,24 @@ query anyMsg : bitstring;
 query attacker(msg).
 
 (* Query 3 *)
-query anyEnclaveHash : enclaveHash;
-	event(DecentAppAccPeer(enclaveA, anyEnclaveHash)) ==>
-	(anyEnclaveHash = HashEnclave(enclaveF)).
+query anyEnclaveHash : enclaveHash, anyAuls : AuthList;
+	let auLs =
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyF), enclaveVrfyFName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)))) in
+	event(DecentAppAccPeer(enclaveA, anyEnclaveHash, anyAuls)) ==>
+	(anyEnclaveHash = HashEnclave(enclaveF)) && (anyAuls = auLs).
 
 (* Query 4 *)
-query anyEnclaveHash : enclaveHash;
-	event(DecentAppAccPeer(enclaveF, anyEnclaveHash)) ==>
-	(anyEnclaveHash = HashEnclave(enclaveA)).
+query anyEnclaveHash : enclaveHash, anyAuls : AuthList;
+	let auLs =
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyF), enclaveVrfyFName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)))) in
+	event(DecentAppAccPeer(enclaveF, anyEnclaveHash, anyAuls)) ==>
+	(anyEnclaveHash = HashEnclave(enclaveA)) && (anyAuls = auLs).
 
 process
 	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty) in

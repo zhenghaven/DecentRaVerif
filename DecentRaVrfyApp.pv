@@ -115,15 +115,6 @@ const enclaveVrfyEName : bitstring.
 const enclaveVrfyF : enclaveProg.
 const enclaveVrfyFName : bitstring.
 
-const enclaveA : enclaveProg.
-const enclaveAName : bitstring.
-
-const enclaveB : enclaveProg.
-const enclaveBName : bitstring.
-
-const enclaveC : enclaveProg.
-const enclaveCName : bitstring.
-
 const enclaveD : enclaveProg.
 const enclaveDName : bitstring.
 
@@ -184,22 +175,30 @@ query anyMsg : bitstring;
 query attacker(msg).
 
 (* Query 3 *)
-query anyEnclaveHash : enclaveHash;
-	event(DecentAppAccPeer(enclaveE, anyEnclaveHash)) ==>
-	(anyEnclaveHash = HashEnclave(enclaveF)).
+query anyEnclaveHash : enclaveHash, anyAuls : AuthList;
+	let auLs =
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyF), enclaveVrfyFName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyE), enclaveVrfyEName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)))) in
+	event(DecentAppAccPeer(enclaveE, anyEnclaveHash, anyAuls)) ==>
+	(anyEnclaveHash = HashEnclave(enclaveF)) && (anyAuls = auLs).
 
 (* Query 4 *)
-query anyEnclaveHash : enclaveHash;
-	event(DecentAppAccPeer(enclaveF, anyEnclaveHash)) ==>
-	(anyEnclaveHash = HashEnclave(enclaveE)).
+query anyEnclaveHash : enclaveHash, anyAuls : AuthList;
+	let auLs =
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyF), enclaveVrfyFName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyE), enclaveVrfyEName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)))) in
+	event(DecentAppAccPeer(enclaveF, anyEnclaveHash, anyAuls)) ==>
+	(anyEnclaveHash = HashEnclave(enclaveE)) && (anyAuls = auLs).
 
 process
 	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty) in
 	let authList1 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName), authList0) in
 	let authList2 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyE), enclaveVrfyEName), authList1) in
-	let authList3 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyF), enclaveVrfyFName), authList2) in
-	let authList4 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), authList3) in
-	let authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName), authList4) in
+	let authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveVrfyF), enclaveVrfyFName), authList2) in
 
 	let revcListA = (HashEnclave(enclaveD), HashEnclave(enclaveD)) in
 

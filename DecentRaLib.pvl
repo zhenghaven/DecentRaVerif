@@ -407,7 +407,7 @@ def Decent_Decent_App(
 
 	event DecentAppGotMsg(enclaveProg, bitstring).
 	event DecentAppGotCert(enclaveProg, enclaveHash, keyseed, AuthList).
-	event DecentAppAccPeer(enclaveProg, enclaveHash).
+	event DecentAppAccPeer(enclaveProg, enclaveHash, AuthList).
 	event DecentAppGotRels(enclaveProg, bitstring).
 	event DecentVrfyIssueCert(enclaveProg, bitstring, enclaveHash, spkey, AuthList).
 
@@ -570,7 +570,7 @@ def Decent_Decent_App(
 			(revokedEnc1 <> peerHash) && (revokedEnc2 <> peerHash) &&
 			checksign(EcPKeyToSignin(peerEcPKey), peerSPKey, peerEcKeySign) then
 		(
-			event DecentAppAccPeer(encProg, peerHash);
+			event DecentAppAccPeer(encProg, peerHash, peerAuLs);
 
 			DecentApp_X_X_Svr_ProcP4_intr(encProg, peerCh, myEcSKey, peerEcPKey)
 		).
@@ -642,7 +642,7 @@ def Decent_Decent_App(
 			(revokedEnc1 <> prHash) && (revokedEnc2 <> prHash) &&
 			checksign(EcPKeyToSignin(prEcPKey), prSPKey, prEcKeySign) then
 		(
-			event DecentAppAccPeer(encProg, prHash);
+			event DecentAppAccPeer(encProg, prHash, prAuLs);
 
 			DecentApp_X_X_Svr_ProcP4_intr(encProg, peerCh, myEcSKey, prEcPKey)
 		).
@@ -872,7 +872,7 @@ def Decent_Decent_App(
 			(revokedEnc1 <> peerHash) && (revokedEnc2 <> peerHash) &&
 			checksign(EcPKeyToSignin(peerEcPKey), peerSPKey, peerEcKeySign) then
 		(
-			event DecentAppAccPeer(encProg, peerHash);
+			event DecentAppAccPeer(encProg, peerHash, peerAuLs);
 
 			DecentApp_X_X_Clt_ProcP4_intr(encProg, peerCh, myEcSKey, peerEcPKey, msg)
 		).
@@ -944,7 +944,7 @@ def Decent_Decent_App(
 			(revokedEnc1 <> prHash) && (revokedEnc2 <> prHash) &&
 			checksign(EcPKeyToSignin(prEcPKey), prSPKey, prEcKeySign) then
 		(
-			event DecentAppAccPeer(encProg, prHash);
+			event DecentAppAccPeer(encProg, prHash, prAuLs);
 
 			DecentApp_X_X_Clt_ProcP4_intr(encProg, peerCh, myEcSKey, prEcPKey, msg)
 		).
