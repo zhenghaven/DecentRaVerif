@@ -56,12 +56,12 @@ expand Decent_Recv_List(enclaveHash, RecvListItem, RecvListNewItem, RecvList, Re
 	(***************************** DecentRA_DecentSvr ******************************)
 
 expand Decent_Decent_Server(
-	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, cleartext, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
+	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, emptyStr, key, bitstring, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
 	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,
-	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn, RecvList, RecvListNewItem, RecvListIsIn,
+	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
@@ -75,11 +75,18 @@ expand Decent_Decent_App(
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
-	(** Lists         **) AuthList, RecvList, RecvListToStr, RecvListEmpty,
-	(** This.Event    **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppGotRels,
-	(** This.RecvProc **) DecentRevc_X_ProcP3_intr, DecentRevc_Auls_ProcP2_intr, DecentRevc_Auls_Proc_intr,
-	(** This.AppProc  **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
-	(** This.AppProc  **) DecentApp_X_X_Clt_ProcP4_intr, DecentApp_X_Auls_Clt_ProcP3_intr, DecentApp_Auls_Auls_Clt_ProcP2_intr, DecentApp_Auls_Auls_Clt_Proc_intr
+	(** Lists         **) AuthList,
+	(** This.Event    **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppGotRels, DecentVrfyIssueCert,
+	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
+	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
+	(** This.AppProc1 **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
+	(** This.AppProc2 **) DecentApp_X_Vrfy_Svr_ProcP3_intr, DecentApp_Auls_Vrfy_Svr_ProcP2_intr, DecentApp_Auls_Vrfy_Svr_Proc_intr,
+	(** This.AppProc3 **) DecentApp_Vrfy_Auls_Svr_ProcP3_intr, DecentApp_Vrfy_Auls_Svr_ProcP2_intr, DecentApp_Vrfy_Auls_Svr_Proc_intr,
+	(** This.AppProc4 **) DecentApp_Vrfy_Vrfy_Svr_ProcP3_intr, DecentApp_Vrfy_Vrfy_Svr_ProcP2_intr, DecentApp_Vrfy_Vrfy_Svr_Proc_intr,
+	(** This.AppProc5 **) DecentApp_X_X_Clt_ProcP4_intr, DecentApp_X_Auls_Clt_ProcP3_intr, DecentApp_Auls_Auls_Clt_ProcP2_intr, DecentApp_Auls_Auls_Clt_Proc_intr,
+	(** This.AppProc6 **) DecentApp_X_Vrfy_Clt_ProcP3_intr_intr, DecentApp_Auls_Vrfy_Clt_ProcP2_intr, DecentApp_Auls_Vrfy_Clt_Proc_intr,
+	(** This.AppProc7 **) DecentApp_Vrfy_Auls_Clt_ProcP3_intr, DecentApp_Vrfy_Auls_Clt_ProcP2_intr, DecentApp_Vrfy_Auls_Clt_Proc_intr,
+	(** This.AppProc8 **) DecentApp_Vrfy_Vrfy_Clt_ProcP3_intr, DecentApp_Vrfy_Vrfy_Clt_ProcP2_intr, DecentApp_Vrfy_Vrfy_Clt_Proc_intr
 	).
 
 (*============================================================================*)
