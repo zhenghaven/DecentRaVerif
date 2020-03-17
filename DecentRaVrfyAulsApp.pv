@@ -204,9 +204,9 @@ process
 			new repKeySeedRecv : keyseed;
 			new svrKeySeedRecv : keyseed;
 			new enclaveRecvKeySeed : keyseed;
-			(DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedRecv, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedRecv))
+			(!DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedRecv, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedRecv))
 			|
-			(DecentRevc_Proc_intr(enclaveRecv, appSvrCh, recvCh, pub_iasRepSPKey, repKeySeedRecv,
+			(!DecentRevc_Proc_intr(enclaveRecv, appSvrCh, recvCh, pub_iasRepSPKey, repKeySeedRecv,
 				enclaveRecvKeySeed, decentSvrName, authListA, revcListA))
 		)
 	)
@@ -217,9 +217,9 @@ process
 			new repKeySeedA : keyseed;
 			new svrKeySeedA : keyseed;
 			new enclaveAKeySeed : keyseed;
-			(DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedA, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedA))
+			(!DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedA, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedA))
 			|
-			(DecentApp_Auls_Vrfy_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
+			(!DecentApp_Auls_Vrfy_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
 				pub_iasRepSPKey, repKeySeedA, enclaveAKeySeed,
 				decentSvrName, enclaveRecvName, enclaveFName, enclaveVrfyFName, authListA))
 		)
@@ -231,9 +231,9 @@ process
 			new repKeySeedVrfyF : keyseed;
 			new svrKeySeedVrfyF : keyseed;
 			new enclaveVrfyFKeySeed : keyseed;
-			(DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedVrfyF, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedVrfyF))
+			(!DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedVrfyF, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedVrfyF))
 			|
-			(DecentVrfy_Proc_intr(enclaveVrfyF, appSvrCh, vrfyCh, pub_iasRepSPKey,
+			(!DecentVrfy_Proc_intr(enclaveVrfyF, appSvrCh, vrfyCh, pub_iasRepSPKey,
 				repKeySeedVrfyF, enclaveVrfyFKeySeed, decentSvrName, authListA, enclaveFName, HashEnclave(enclaveF)))
 		)
 	)
@@ -244,9 +244,9 @@ process
 			new repKeySeedF : keyseed;
 			new svrKeySeedF : keyseed;
 			new enclaveFKeySeed : keyseed;
-			(DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedF, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedF))
+			(!DecentSvrProc_intr(enclaveDecentSvr, svrKeySeedF, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeedF))
 			|
-			(DecentApp_Vrfy_Auls_Clt_Proc_intr(enclaveF, appSvrCh, vrfyCh, peerCh, msg, recvCh,
+			(!DecentApp_Vrfy_Auls_Clt_Proc_intr(enclaveF, appSvrCh, vrfyCh, peerCh, msg, recvCh,
 				pub_iasRepSPKey, repKeySeedF, enclaveFKeySeed,
 				decentSvrName, enclaveRecvName, enclaveAName, authListA))
 		)
