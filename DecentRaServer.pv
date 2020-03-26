@@ -76,7 +76,7 @@ expand Decent_Decent_App(
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
-	(** This.Event    **) DecentAppAccPeer, DecentAppGotCert, DecentAppGotMsg, DecentAppGotRels, DecentVrfyIssueCert,
+	(** This.Event    **) DecentAppLoadAuLs, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
 	(** This.AppProc1 **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
@@ -124,6 +124,8 @@ not attacker(sskgen(encPrvsKeySeed)).
 not attacker(sskgen(new svrKeySeed)).
 not attacker(sskgen(new repKeySeed)).
 not attacker(sskgen(new enclaveKeySeed)).
+
+not attacker(new enclaveEcKey1).
 
 (******************************* Queries *****************************)
 
@@ -178,16 +180,28 @@ process
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
 	let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in
 
-	(* IAS Server A    *) (!IasProc_intr(svrIasCh, iasRepKeySeed, pub_encPrvsKey))
+	(* IAS Server A    *)
+	(!IasProc_intr(svrIasCh, iasRepKeySeed, pub_encPrvsKey))
+	(* An enclave platform (incl. Decent Server & Decent App) *)
 	|
-	(! (* An enclave platform (incl. Decent Server & Decent App) *)
+	(!
 		(
-			new svrKeySeed : keyseed;
 			new repKeySeed : keyseed;
-			new enclaveKeySeed : keyseed;
-			(!DecentSvrProc_intr(enclaveDecentSvr, svrKeySeed, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeed))
+			(!
+				(
+					new svrKeySeed : keyseed;
+					DecentSvrProc_intr(enclaveDecentSvr, svrKeySeed, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, repKeySeed)
+				)
+			)
 			|
-			(!DecentApp_Auls_Auls_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
-				pub_iasRepSPKey, repKeySeed, enclaveKeySeed, decentSvrName, enclaveRecvName, enclaveBName, authListA))
+			(!
+				(
+					new enclaveKeySeed : keyseed;
+					new enclaveEcKey1 : ecskey;
+					DecentApp_Auls_Auls_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
+						pub_iasRepSPKey, repKeySeed, enclaveKeySeed, decentSvrName, enclaveRecvName, enclaveBName, authListA,
+						enclaveEcKey1)
+				)
+			)
 		)
 	)
