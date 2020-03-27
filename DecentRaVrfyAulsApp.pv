@@ -150,7 +150,9 @@ not attacker(new enclaveRecvEcKey1).
 not attacker(new enclaveVrfyE1EcKey1).
 not attacker(new enclaveVrfyE2EcKey1).
 not attacker(new enclaveEEcKey1).
+not attacker(new enclaveEEcKey2).
 not attacker(new enclaveBEcKey1).
+not attacker(new enclaveBEcKey2).
 
 (******************************* Queries *****************************)
 
@@ -239,9 +241,10 @@ process
 				(
 					new enclaveEKeySeed : keyseed;
 					new enclaveEEcKey1 : ecskey;
+					new enclaveEEcKey2 : ecskey;
 					DecentApp_Vrfy_Auls_Svr_Proc_intr(enclaveE, appSvrCh, vrfyCh, peerCh, recvCh,
 						pub_iasRepSPKey, localRepKey, enclaveEKeySeed,
-						decentSvrName, enclaveRecvName, enclaveBName, authListA, enclaveEEcKey1)
+						decentSvrName, enclaveRecvName, enclaveBName, authListA, enclaveEEcKey1, enclaveEEcKey2)
 				)
 			)
 			(* Decent App B *)
@@ -250,9 +253,10 @@ process
 				(
 					new enclaveBKeySeed : keyseed;
 					new enclaveBEcKey1 : ecskey;
+					new enclaveBEcKey2 : ecskey;
 					DecentApp_Auls_Vrfy_Clt_Proc_intr(enclaveB, appSvrCh, peerCh, recvCh, msg,
 						pub_iasRepSPKey, localRepKey, enclaveBKeySeed, decentSvrName, enclaveRecvName, enclaveEName, enclaveVrfyEName, authListA,
-						enclaveBEcKey1)
+						enclaveBEcKey1, enclaveBEcKey2)
 				)
 			)
 			(* Malicious Part: *)
@@ -272,11 +276,13 @@ process
 				(
 					new enclaveDKeySeed : keyseed;
 					new enclaveDEcKey1 : ecskey;
+					new enclaveDEcKey2 : ecskey;
 					out(attackCh, enclaveDKeySeed);
 					out(attackCh, enclaveDEcKey1);
+					out(attackCh, enclaveDEcKey2);
 					DecentApp_Vrfy_Auls_Svr_Proc_intr(enclaveD, appSvrCh, vrfyCh, peerCh, recvCh,
 						pub_iasRepSPKey, localRepKey, enclaveDKeySeed,
-						decentSvrName, enclaveRecvName, enclaveBName, authListA, enclaveDEcKey1)
+						decentSvrName, enclaveRecvName, enclaveBName, authListA, enclaveDEcKey1, enclaveDEcKey2)
 				)
 			)
 		)

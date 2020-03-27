@@ -141,7 +141,9 @@ not attacker(sskgen(new enclaveBKeySeed)).
 
 not attacker(new enclaveRecvEcKey1).
 not attacker(new enclaveAEcKey1).
+not attacker(new enclaveAEcKey2).
 not attacker(new enclaveBEcKey1).
+not attacker(new enclaveBEcKey2).
 
 (******************************* Queries *****************************)
 
@@ -161,6 +163,12 @@ query anyEnclaveHash : enclaveHash, anyAuls : AuthList;
 	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty))))) in
 	event(DecentAppAccPeer(enclaveB, anyEnclaveHash, anyAuls)) ==>
 	(anyEnclaveHash = HashEnclave(enclaveA)) && (anyAuls = auLs);
+	let auLs =
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveD), enclaveAName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty))))) in
 	event(DecentAppAccPeer(enclaveA, anyEnclaveHash, anyAuls)) ==>
 	(anyEnclaveHash = HashEnclave(enclaveB)) && (anyAuls = auLs).
 
@@ -207,9 +215,10 @@ process
 				(
 					new enclaveAKeySeed : keyseed;
 					new enclaveAEcKey1 : ecskey;
+					new enclaveAEcKey2 : ecskey;
 					DecentApp_Auls_Auls_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
 						pub_iasRepSPKey, localRepKey, enclaveAKeySeed, decentSvrName, enclaveRecvName, enclaveBName, authListA,
-						enclaveAEcKey1)
+						enclaveAEcKey1, enclaveAEcKey2)
 				)
 			)
 			(* Decent App B *)
@@ -218,9 +227,10 @@ process
 				(
 					new enclaveBKeySeed : keyseed;
 					new enclaveBEcKey1 : ecskey;
+					new enclaveBEcKey2 : ecskey;
 					DecentApp_Auls_Auls_Clt_Proc_intr(enclaveB, appSvrCh, peerCh, recvCh, msg,
 						pub_iasRepSPKey, localRepKey, enclaveBKeySeed, decentSvrName, enclaveRecvName, enclaveAName, authListA,
-						enclaveBEcKey1)
+						enclaveBEcKey1, enclaveBEcKey2)
 				)
 			)
 			(* Malicious Part: *)
@@ -240,11 +250,13 @@ process
 				(
 					new enclaveCKeySeed : keyseed;
 					new enclaveCEcKey1 : ecskey;
+					new enclaveCEcKey2 : ecskey;
 					out(attackCh, enclaveCKeySeed);
 					out(attackCh, enclaveCEcKey1);
+					out(attackCh, enclaveCEcKey2);
 					DecentApp_Auls_Auls_Svr_Proc_intr(enclaveC, appSvrCh, peerCh, recvCh,
 						pub_iasRepSPKey, localRepKey, enclaveCKeySeed, decentSvrName, enclaveRecvName, enclaveBName, authListA,
-						enclaveCEcKey1)
+						enclaveCEcKey1, enclaveCEcKey2)
 				)
 			)
 			(* Decent App D (attacker controlled, in AuthList, revoked) *)
@@ -253,11 +265,13 @@ process
 				(
 					new enclaveDKeySeed : keyseed;
 					new enclaveDEcKey1 : ecskey;
+					new enclaveDEcKey2 : ecskey;
 					out(attackCh, enclaveDKeySeed);
 					out(attackCh, enclaveDEcKey1);
+					out(attackCh, enclaveDEcKey2);
 					DecentApp_Auls_Auls_Svr_Proc_intr(enclaveD, appSvrCh, peerCh, recvCh,
 						pub_iasRepSPKey, localRepKey, enclaveDKeySeed, decentSvrName, enclaveRecvName, enclaveBName, authListA,
-						enclaveDEcKey1)
+						enclaveDEcKey1, enclaveDEcKey2)
 				)
 			)
 		)
