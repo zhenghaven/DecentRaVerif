@@ -76,7 +76,7 @@ expand Decent_Decent_App(
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
-	(** This.Event    **) DecentAppLoadAuLs, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
+	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
 	(** This.AppProc1 **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
@@ -100,95 +100,74 @@ free svrIasCh : channel.
 free appSvrCh : channel.
 free peerCh : channel.
 free recvCh : channel.
+free attackCh : channel.
 
 (* Decent App Materials *)
-const enclaveRecv : enclaveProg.
-const enclaveRecvName : bitstring.
-
 free enclaveA : enclaveProg.
 free enclaveAName : bitstring.
 
-free enclaveB : enclaveProg.
-free enclaveBName : bitstring.
+free enclaveD : enclaveProg.
 
 (******************************* Secrecy assumptions *****************************)
 
 not attacker(iasRepKeySeed).
 not attacker(encPrvsKeySeed).
-not attacker(new svrKeySeed).
-not attacker(new repKeySeed).
+not attacker(new localRepKey).
+not attacker(new decentSvrKeySeed).
 not attacker(new enclaveKeySeed).
 
 not attacker(sskgen(iasRepKeySeed)).
 not attacker(sskgen(encPrvsKeySeed)).
-not attacker(sskgen(new svrKeySeed)).
-not attacker(sskgen(new repKeySeed)).
+not attacker(sskgen(new localRepKey)).
+not attacker(sskgen(new decentSvrKeySeed)).
 not attacker(sskgen(new enclaveKeySeed)).
 
 not attacker(new svrEcKey1).
 not attacker(new enclaveEcKey1).
 
+not attacker(EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, new svrEcKey1), new enclaveEcKey1))).
+not attacker(EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, new enclaveEcKey1), new svrEcKey1))).
+
 (******************************* Queries *****************************)
 
-(* Query 1: event DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), enclaveSPKeySeed) is reachable. *)
-query let enclaveSPKeySeed = new enclaveKeySeed in
-	let auLs =
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), enclaveSPKeySeed, auLs)).
-
-(* Query 2: event DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), repSPKeySeed, enclaveSPKey, auLs) is reachable. *)
-query let enclaveSPKey = spkgen(new enclaveKeySeed) in
-	let repSPKeySeed = new repKeySeed in
-	let auLs =
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), repSPKeySeed, enclaveSPKey, auLs)).
-
-(* Query 3:  *)
-query anyEnclave : enclaveProg, anyEncKeyseed : keyseed, anyAuLs : AuthList;
-	let repSPKeySeed = new repKeySeed in
-	let auLs =
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	inj-event(DecentAppGotCert(anyEnclave, HashEnclave(enclaveDecentSvr), anyEncKeyseed, anyAuLs)) ==>
-	inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), repSPKeySeed, spkgen(anyEncKeyseed), anyAuLs)).
-
-(* Query 4:  *)
-query anyEnclave : enclaveProg, anyEncKeyseed : keyseed, anyAuLs : AuthList;
-	let enclaveSPKeySeed = new enclaveKeySeed in
-	let repSPKeySeed = new repKeySeed in
-	let auLs =
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
-	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty)) in
-	event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), repSPKeySeed, spkgen(anyEncKeyseed), anyAuLs)) ==>
-	(anyEnclave = enclaveA) && (anyEncKeyseed = enclaveSPKeySeed) && (anyAuLs = auLs).
+(* Query 1 *)
+query anyEnclave : enclaveProg, anyEncKey : spkey, anyAuLs : AuthList,
+	anyEncKeySvrGot : spkey, anyAuLsSvrGot : AuthList;
+	inj-event(DecentAppGotCert(anyEnclave, HashEnclave(enclaveDecentSvr), anyEncKey, anyAuLs)) ==>
+	(
+		inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), new localRepKey, anyEncKeySvrGot, anyAuLsSvrGot)) ==>
+		(anyEncKey = anyEncKeySvrGot) && (anyAuLs = anyAuLsSvrGot)
+	).
 
 process
-	let authList0 = AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty) in
-	let pub_authListA = AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName), authList0) in
+	let revcListA = (HashEnclave(enclaveD), HashEnclave(enclaveD)) in
 
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
 
+	(* An enclave platform *)
 	(!
 		(
-			new repKeySeed : keyseed;
+			new localRepKey : keyseed;
+
+			(* Decent Server *)
 			(!
 				(
-					new svrKeySeed : keyseed;
+					new decentSvrKeySeed : keyseed;
 					new svrEcKey1 : ecskey;
 					let iasRep =
-						GetSignedIasRep_intr(true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(iasRepKeySeed)) in
-					DecentSvrProcP2_intr(enclaveDecentSvr, svrKeySeed, appSvrCh, iasRep, repKeySeed, svrEcKey1)
+						GetSignedIasRep_intr(true, HashEnclave(enclaveDecentSvr), SPKey2Bitstr(spkgen(decentSvrKeySeed)), sskgen(iasRepKeySeed)) in
+					DecentSvrProcP2_intr(enclaveDecentSvr, decentSvrKeySeed, appSvrCh, iasRep, localRepKey, svrEcKey1)
 				)
 			)
+			(* Decent App *)
 			|
 			(!
 				(
+					in(attackCh, someAuls : AuthList);
 					new enclaveKeySeed : keyseed;
 					new enclaveEcKey1 : ecskey;
-					DecentApp_Auls_Auls_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
-						pub_iasRepSPKey, repKeySeed, enclaveKeySeed, decentSvrName, enclaveRecvName, enclaveBName, pub_authListA,
+					DecentRevc_Proc_intr(enclaveA, appSvrCh, peerCh,
+						pub_iasRepSPKey, localRepKey, enclaveKeySeed, decentSvrName, someAuls, revcListA,
 						enclaveEcKey1)
 				)
 			)

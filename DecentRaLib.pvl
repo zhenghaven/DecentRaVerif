@@ -392,7 +392,7 @@ def Decent_Decent_App(
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
-	(** This.Event    **) DecentAppLoadAuLs, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
+	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
 	(** This.AppProc1 **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
@@ -407,7 +407,7 @@ def Decent_Decent_App(
 
 	(*===== Events =====*)
 
-	event DecentAppLoadAuLs(enclaveProg, AuthList).
+	event DecentAppInit(enclaveProg, spkey, AuthList).
 	event DecentAppGotCert(enclaveProg, enclaveHash, spkey, AuthList).
 	event DecentAppGotRels(enclaveProg, enclaveHash, AuthList, bitstring).
 	event DecentAppAccPeer(enclaveProg, enclaveHash, AuthList).
@@ -603,7 +603,7 @@ def Decent_Decent_App(
 	let DecentApp_Auls_Auls_Svr_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel, recvCh : channel,
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, recvName : bitstring, peerName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -677,7 +677,7 @@ def Decent_Decent_App(
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, recvName : bitstring, peerName : bitstring, vrfyName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
 
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -754,7 +754,7 @@ def Decent_Decent_App(
 		svrName : bitstring, recvName : bitstring, peerName : bitstring, vrfyName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
 
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -831,7 +831,7 @@ def Decent_Decent_App(
 		svrName : bitstring, recvName : bitstring, peerName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
 
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -915,7 +915,7 @@ def Decent_Decent_App(
 	let DecentApp_Auls_Auls_Clt_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel, recvCh : channel, msg : bitstring,
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, recvName : bitstring, peerName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -989,7 +989,7 @@ def Decent_Decent_App(
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, recvName : bitstring, peerName : bitstring, vrfyName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
 
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -1062,7 +1062,7 @@ def Decent_Decent_App(
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, recvName : bitstring, peerName : bitstring, vrfyName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
 
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -1135,7 +1135,7 @@ def Decent_Decent_App(
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, recvName : bitstring, peerName : bitstring, auLs : AuthList,
 		myEcKey1 : ecskey, myEcKey2 : ecskey) =
 
-		event DecentAppLoadAuLs(encProg, auLs);
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
