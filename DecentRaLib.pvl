@@ -293,6 +293,7 @@ def Decent_Decent_Server(
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
+	(** This. MalProc **) MaliciousSvrProc_intr,
 	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr) {
 
 	const enclaveDecentSvr : enclaveProg.
@@ -378,6 +379,18 @@ def Decent_Decent_Server(
 
 			DecentSvrProcP2_intr(encProg, svrKeySeed, appCh, iasRep, repKeySeed, myEcKey1)
 		).
+
+	let MaliciousSvrProc_intr(encProg : enclaveProg, svrKeySeed : keyseed, iasCh : channel, attackCh : channel, prvsKeySeed : keyseed, repKeySeed : keyseed,
+		myEcKey1 : ecskey) =
+
+		(* >IAS 1. Generate quote *)
+		let signedQuote = GetEnclaveSignedQuote_intr(encProg, SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(prvsKeySeed)) in
+		out(iasCh, signedQuote);
+
+		let svrLocAttRep = GetLocAttSignedRep(false, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
+		out(attackCh, svrLocAttRep);
+		let svrLocAttRepT = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
+		out(attackCh, svrLocAttRepT).
 }
 
 (***************************** Decent App ******************************)
@@ -394,6 +407,7 @@ def Decent_Decent_App(
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
 	(** Lists         **) AuthList,
 	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
+	(** This.attaProc **) DecentApp_Malicious_Proc_intr,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
 	(** This.AppProc1 **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
@@ -429,6 +443,15 @@ def Decent_Decent_App(
 			checksign(getmess(prAppCert), prVrfySPKey, prAppCert) &&
 			(auLs = prAuLs) &&
 			(expAppName = prName).
+
+	(*===== DecentApp_Malicious_Proc =====*)
+
+	(* Get cert from server. *)
+	let DecentApp_Malicious_Proc_intr(encProg : enclaveProg, attackCh : channel, repKeySeed : keyseed, myEcKey1 : ecskey) =
+
+		(* >svr 1. Local Attestation *)
+		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
+		out(attackCh, appLocAttRep).
 
 (*
 	Get cert from svr   verify peer's cert    Send recv list
