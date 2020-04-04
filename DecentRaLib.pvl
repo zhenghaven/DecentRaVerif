@@ -107,9 +107,10 @@ fun kgen(keyseed): key.
 
 (***************************** CV_AEAD ******************************)
 
-def CV_AEAD_types(key, add_data, nonce, zero_nonce, dummy_key, IncrNonce) {
+def CV_AEAD_types(key, add_data, nonce, enc_seed, zero_nonce, dummy_key, IncrNonce) {
 	type add_data.
 	type nonce.
+	type enc_seed.
 
 	const zero_nonce : nonce.
 	const dummy_key : key.
@@ -117,38 +118,51 @@ def CV_AEAD_types(key, add_data, nonce, zero_nonce, dummy_key, IncrNonce) {
 	fun IncrNonce(nonce) : nonce [data].
 }
 
-def CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, nonce, enc, enc_r, dec, injbot, Z, dummy_key) {
+def CV_AEAD_args(key, bitstringbot, bottom, cleartext, ciphertext, add_data, enc_seed, enc, enc_r, dec, injbot, Z, dummy_key) {
 
-fun enc(cleartext, add_data, key, nonce): ciphertext.
+(*
+	clear text : cleartext,
+	additional data : add_data,
+	secret key : key,
+	salt (or init vector) : enc_seed
+*)
+fun enc_r(cleartext, add_data, key, enc_seed): ciphertext.
 fun injbot(cleartext):bitstringbot [data].
 
-fun dec(ciphertext, add_data, key, nonce): bitstringbot
-reduc forall m:cleartext, d:add_data, k:key, n:nonce;
-	dec(enc_r(m, d, k, n), d, k, n) = injbot(m)
-otherwise forall c:ciphertext, d:add_data, k:key, n:nonce;
-        dec(c, d, k, n) = bottom.
+(* The encryption function is probabilistic *)
+letfun enc(m : cleartext, d : add_data, k : key) =
+	r <-R enc_seed; enc_r(m, d, k, r).
+
+fun dec(ciphertext, add_data, key): bitstringbot
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed;
+	dec(enc_r(m, d, k, r), d, k) = injbot(m)
+otherwise forall c:ciphertext, d:add_data, k:key;
+	dec(c, d, k) = bottom.
 
 fun Z(cleartext):cleartext.
 
 (* The additional data is authenticated, but not encrypted, so it may leak *)
-reduc forall m:cleartext, d:add_data, r:nonce, k:key;
-        get_data(enc_r(m, d, k, r)) = d.
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed;
+	get_data(enc_r(m, d, k, r)) = d.
 
-(* The scheme is broken if the same nonce is used twice *)
-fun break(ciphertext, ciphertext): key
-reduc forall m:cleartext, d:add_data, k:key, n:nonce;
-      break(enc_r(m, d, k, n),enc_r(m, d, k, n)) = dummy_key
-otherwise forall m:cleartext, d:add_data, m':cleartext, d':add_data, k:key, n:nonce;
-      break(enc_r(m, d, k, n),enc_r(m', d', k, n)) = k.
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed;
+	get_salt(enc_r(m, d, k, r)) = r.
 
 (* Encryption leaks Z(m), typically the length of m *)
-reduc forall m:cleartext, d:add_data, r:nonce, k:key;
-        leak(enc_r(m, d, k, r)) = Z(m).
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed;
+	leak(enc_r(m, d, k, r)) = Z(m).
 (* Note: providing a good definition of Z in ProVerif is a problem *)
 
+(* The scheme is broken if the same salt is used twice
+fun break(ciphertext, ciphertext): key
+reduc forall m:cleartext, d:add_data, k:key, r:enc_seed;
+	break(enc_r(m, d, k, r),enc_r(m, d, k, r)) = dummy_key
+otherwise forall m:cleartext, d:add_data, m':cleartext, d':add_data, k:key, r:enc_seed;
+	break(enc_r(m, d, k, r),enc_r(m', d', k, r)) = k. *)
+
 (* Test equality of keys *)
-reduc forall x:cleartext, d:add_data, x':cleartext, d':add_data, r:nonce, r':nonce, y:key;
-        keyeq(enc_r(x,d,y,r),enc_r(x',d',y,r')) = true.
+reduc forall x:cleartext, x':cleartext, d:add_data, d':add_data, k:key, r:enc_seed, r':enc_seed;
+	keyeq(enc_r(x, d, k, r),enc_r(x', d', k, r')) = true.
 
 }
 
@@ -187,9 +201,8 @@ def Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bi
 	type EventSubType.
 }
 
-def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput, cleartext, ciphertext, add_data, nonce, enc,
-	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin,
-	dummy_ecpkey, GetEcPKeyA, GetEcPKeyB) {
+def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput,
+	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin) {
 	(*
 	ecskey = DiHeZ;
 	ecpkey = DiHeExp(DiHeValG, ecskey);
@@ -202,25 +215,12 @@ def Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput, cleartext, cipherte
 
 	fun EcDiHeToKey(ecpkey) : key.
 
-	const dummy_ecpkey : ecpkey.
-
 	letfun ecpkgen(sk : ecskey) = DiHeExp(DiHeValG, sk).
 
 	letfun EcDiHeKeyGen(sk : ecskey, pk : ecpkey) = EcDiHeToKey(DiHeExp(pk, sk)).
 
 	fun EcPKeyToSignin(ecpkey) : signinput [typeConverter].
 
-	fun GetEcPKeyA(ciphertext): ecpkey
-	reduc forall m : cleartext, d : add_data, s1 : ecskey, s2 : ecskey, n : nonce;
-		GetEcPKeyA(enc(m, d, EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, s1), s2)), n)) = DiHeExp(DiHeValG, s1)
-	otherwise forall c : ciphertext;
-		GetEcPKeyA(c) = dummy_ecpkey.
-
-	fun GetEcPKeyB(ciphertext): ecpkey
-	reduc forall m : cleartext, d : add_data, s1 : ecskey, s2 : ecskey, n : nonce;
-		GetEcPKeyB(enc(m, d, EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, s1), s2)), n)) = DiHeExp(DiHeValG, s2)
-	otherwise forall c : ciphertext;
-		GetEcPKeyB(c) = dummy_ecpkey.
 }
 
 (***************************** Local Attestation ******************************)
@@ -339,28 +339,30 @@ def Decent_Decent_Server(
 		let svrLocAttRep = GetLocAttSignedRep(false, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
 		out(appCh, svrLocAttRep);
 		in(appCh, appLocAttRep : signature);
+
 		let LocAttRep(appIsInit : bool, appEcPKey : ecpkey, appEncHash : enclaveHash, appAppData : bitstring) = getmess(appLocAttRep) in
 		if checksign(getmess(appLocAttRep), spkgen(repKeySeed), appLocAttRep) &&
 			appIsInit then
 		(
-			let locChKey = EcDiHeKeyGen(myEcKey1, appEcPKey) in
-
-			(* >app 2. Generate App Certificate *)
 			in(appCh, certSignReqCipher : ciphertext);
-			let locChNonce0 = zero_nonce in
-			let certSignReq = dec(certSignReqCipher, (appEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce0) in
+
+			let locChKey = EcDiHeKeyGen(myEcKey1, appEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
+			let certSignReq = dec(certSignReqCipher, (false, chNonce0), locChKey) in
 			if certSignReq <> bottom then
 			(
 				let sinjbot((appSPkey : spkey, auLs : AuthList)) = certSignReq in
 				event DecentSvrIssueCert(encProg, appEncHash, repKeySeed, appSPkey, auLs);
 
-				let locChNonce1 = IncrNonce(locChNonce0) in
-				out(appCh, enc((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed))), (ecpkgen(myEcKey1), appEcPKey), locChKey, locChNonce1))
+				(* >app 2. Generate App Certificate *)
+				out(appCh, enc((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed))), (true, chNonce1), locChKey))
 				(*sync 2*)
 			)
 		).
 
-	let DecentSvrProc_intr(encProg : enclaveProg, svrKeySeed : keyseed, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed) =
+	let DecentSvrProc_intr(encProg : enclaveProg, svrKeySeed : keyseed, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed,
+		myEcKey1 : ecskey) =
 
 		(* >IAS 1. Generate quote *)
 		let signedQuote = GetEnclaveSignedQuote_intr(encProg, SPKey2Bitstr(spkgen(svrKeySeed)), sskgen(prvsKeySeed)) in
@@ -374,7 +376,6 @@ def Decent_Decent_Server(
 			(* Successfully received valid IAS report. *)
 			event DecentSvrGotIasRep(encProg, iasSPkey);
 
-			new myEcKey1 : ecskey;
 			DecentSvrProcP2_intr(encProg, svrKeySeed, appCh, iasRep, repKeySeed, myEcKey1)
 		).
 }
@@ -483,18 +484,20 @@ def Decent_Decent_App(
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
 		out(svrCh, appLocAttRep);
 		in(svrCh, svrLocAttRep : signature);
+
 		let LocAttRep(svrIsInit : bool, svrEcPKey : ecpkey, svrEncHash : enclaveHash, svrAppData : bitstring) = getmess(svrLocAttRep) in
 		if checksign(getmess(svrLocAttRep), spkgen(repKeySeed), svrLocAttRep) &&
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
@@ -518,6 +521,7 @@ def Decent_Decent_App(
 	let DecentRevc_Proc_intr(encProg : enclaveProg, svrCh : channel, peerCh : channel,
 		iasSPkey : spkey, repKeySeed : keyseed, appKeySeed : keyseed, svrName : bitstring, auLs : AuthList, reLs : bitstring,
 		myEcKey1 : ecskey) =
+		event DecentAppInit(encProg, spkgen(appKeySeed), auLs);
 
 		(* >svr 1. Local Attestation *)
 		let appLocAttRep = GetLocAttSignedRep(true, ecpkgen(myEcKey1), encProg, emptyStr, sskgen(repKeySeed)) in
@@ -528,13 +532,14 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
@@ -553,13 +558,14 @@ def Decent_Decent_App(
 
 	(* Receive secret information from peer (client) (DecentApp_X_X_Svr_ProcP4) *)
 	let DecentApp_X_X_Svr_ProcP4_intr(encProg : enclaveProg, peerCh : channel, myEcKey : ecskey, peerEcKey : ecpkey) =
-		(* Calc shared secret *)
-		let peerChKey = EcDiHeKeyGen(myEcKey, peerEcKey) in
 
 		(* Recv secret from client *)
 		in(peerCh, cipherMsg : ciphertext);
-		let peerChNonce0 = zero_nonce in
-		let msgCipher = dec(cipherMsg, (peerEcKey, ecpkgen(myEcKey)), peerChKey, peerChNonce0) in
+
+		(* Calc shared secret *)
+		let chKey = EcDiHeKeyGen(myEcKey, peerEcKey) in
+		let chNonce0 = zero_nonce in
+		let msgCipher = dec(cipherMsg, (false, chNonce0), chKey) in
 		if (msgCipher <> bottom) then
 		(
 			let sinjbot(msg : bitstring) = msgCipher in
@@ -614,20 +620,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Auls_Auls_Svr_ProcP2_intr(encProg, peerCh, recvCh, iasSPkey, appKeySeed,
-					svrName, recvName, peerName, auLs, svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Auls_Auls_Svr_ProcP2_intr(encProg, peerCh, recvCh, iasSPkey, appKeySeed,
+						svrName, recvName, peerName, auLs, svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -688,20 +702,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Auls_Vrfy_Svr_ProcP2_intr(encProg, peerCh, recvCh, iasSPkey, appKeySeed,
-					svrName, recvName, peerName, vrfyName, auLs, svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Auls_Vrfy_Svr_ProcP2_intr(encProg, peerCh, recvCh, iasSPkey, appKeySeed,
+						svrName, recvName, peerName, vrfyName, auLs, svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -765,20 +787,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Vrfy_Vrfy_Svr_ProcP2_intr(encProg, vrfyCh, peerCh, recvCh, iasSPkey, appKeySeed,
-					svrName, recvName, peerName, vrfyName, auLs, svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Vrfy_Vrfy_Svr_ProcP2_intr(encProg, vrfyCh, peerCh, recvCh, iasSPkey, appKeySeed,
+						svrName, recvName, peerName, vrfyName, auLs, svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -842,20 +872,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Vrfy_Auls_Svr_ProcP2_intr(encProg, vrfyCh, peerCh, recvCh, iasSPkey, appKeySeed,
-					svrName, recvName, peerName, auLs, svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Vrfy_Auls_Svr_ProcP2_intr(encProg, vrfyCh, peerCh, recvCh, iasSPkey, appKeySeed,
+						svrName, recvName, peerName, auLs, svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -871,11 +909,11 @@ def Decent_Decent_App(
 	(* Send secret to server (DecentApp_X_X_Clt_ProcP4) *)
 	let DecentApp_X_X_Clt_ProcP4_intr(encProg : enclaveProg, peerCh : channel, myEcKey : ecskey, peerEcKey : ecpkey, msg : bitstring) =
 		(* Calc shared secret *)
-		let peerChKey = EcDiHeKeyGen(myEcKey, peerEcKey) in
+		let chKey = EcDiHeKeyGen(myEcKey, peerEcKey) in
+		let chNonce0 = zero_nonce in
 
 		(* Send secret to server *)
-		let peerChNonce0 = zero_nonce in
-		out(peerCh, enc(msg, (ecpkgen(myEcKey), peerEcKey), peerChKey, peerChNonce0))
+		out(peerCh, enc(msg, (false, chNonce0), chKey))
 		.
 
 	(* Verify peer's certificate chain. (DecentApp_X_Auls_Clt_ProcP3) *)
@@ -926,20 +964,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Auls_Auls_Clt_ProcP2_intr(encProg, peerCh, recvCh, msg, iasSPkey, appKeySeed, svrName, recvName, peerName, auLs,
-					svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Auls_Auls_Clt_ProcP2_intr(encProg, peerCh, recvCh, msg, iasSPkey, appKeySeed, svrName, recvName, peerName, auLs,
+						svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -1000,20 +1046,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Auls_Vrfy_Clt_ProcP2_intr(encProg, peerCh, recvCh, msg, iasSPkey, appKeySeed, svrName, recvName, peerName, vrfyName, auLs,
-					svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Auls_Vrfy_Clt_ProcP2_intr(encProg, peerCh, recvCh, msg, iasSPkey, appKeySeed, svrName, recvName, peerName, vrfyName, auLs,
+						svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -1073,20 +1127,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Vrfy_Vrfy_Clt_ProcP2_intr(encProg, vrfyCh, peerCh, msg, recvCh, iasSPkey, appKeySeed,
-					svrName, recvName, peerName, vrfyName, auLs, svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Vrfy_Vrfy_Clt_ProcP2_intr(encProg, vrfyCh, peerCh, msg, recvCh, iasSPkey, appKeySeed,
+						svrName, recvName, peerName, vrfyName, auLs, svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
@@ -1146,20 +1208,28 @@ def Decent_Decent_App(
 			not(svrIsInit) then
 		(
 			let locChKey = EcDiHeKeyGen(myEcKey1, svrEcPKey) in
+			let chNonce0 = zero_nonce in
+			let chNonce1 = IncrNonce(chNonce0) in
 
 			(* >svr 2. Request for App Certificate *)
-			let locChNonce0 = zero_nonce in
-			out(svrCh, enc((spkgen(appKeySeed), auLs), (ecpkgen(myEcKey1), svrEcPKey), locChKey, locChNonce0));
+			out(svrCh, enc((spkgen(appKeySeed), auLs), (false, chNonce0), locChKey));
+
 			in(svrCh, appCertCipher : ciphertext);
-			let locChNonce1 = IncrNonce(locChNonce0) in
-			let appCertDec = dec(appCertCipher, (svrEcPKey, ecpkgen(myEcKey1)), locChKey, locChNonce1) in
+			let appCertDec = dec(appCertCipher, (true, chNonce1), locChKey) in
 			if (appCertDec <> bottom) then
 			(
 				let sinjbot((svrCert : signature, appCert : signature)) = appCertDec in
-				event DecentAppGotCert(encProg, svrEncHash, spkgen(appKeySeed), auLs);
 
-				DecentApp_Vrfy_Auls_Clt_ProcP2_intr(encProg, vrfyCh, peerCh, msg, recvCh, iasSPkey, appKeySeed,
-					svrName, recvName, peerName, auLs, svrCert, appCert, myEcKey2)
+				let DecentSvrSignin(svrSPKey : spkey, svrIasRep : signature) = getmess(svrCert) in
+				if VrfyDecentSvrCert_intr(svrCert, svrName, auLs, iasSPkey) &&
+					checksign(getmess(appCert), svrSPKey, appCert) then
+				(
+					let DecentAppSignin(hashInAppCert : enclaveHash, keyInAppCert : spkey, aulsInAppCert : AuthList) = getmess(appCert) in
+					event DecentAppGotCert(encProg, svrEncHash, keyInAppCert, aulsInAppCert);
+
+					DecentApp_Vrfy_Auls_Clt_ProcP2_intr(encProg, vrfyCh, peerCh, msg, recvCh, iasSPkey, appKeySeed,
+						svrName, recvName, peerName, auLs, svrCert, appCert, myEcKey2)
+				)
 			)
 		).
 
