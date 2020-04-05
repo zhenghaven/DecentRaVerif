@@ -35,7 +35,13 @@ Within these honest processes, the attacker will be able to get a ***quote*** fo
 
 Some verifications will run forever, thus, we have to decompose them into small problems, and verify them one-by-one.
 
-### Authenticity of data sent between Decent Apps (which are both listed in the AuthList)
+### 01 Secrecy of data sent between Decent Apps (which are both listed in the AuthList)
+
+Secret data sent between legitimate Decent Apps should not be reachable to the attacker.
+
+[This verification](#vf-01-decentraauapp-secrecypv) can be finished at once, thus, no decomposition is needed.
+
+### 02 Authenticity of data sent between Decent Apps (which are both listed in the AuthList)
 
 * **Data authenticity (when Decent Apps are loaded with the same AuthList)**\
 	All legitimate Decent Apps are loaded with the same legitimate AuthList
@@ -43,6 +49,30 @@ Some verifications will run forever, thus, we have to decompose them into small 
 	legitimate Decent Apps / Clients only accept other Decent Apps loaded with the same AuthList
 	* [**Correctness of Decent Server**](#vf-b02-decentraserverpv)\
 		A legitimate Decent Server should issue certificates containing the identicial AuthList as the legitimate Decent App loaded
+
+## Core Verifications
+
+### [vf-01-DecentRaAuApp-Secrecy.pv](vf-01-DecentRaAuApp-Secrecy.pv)
+
+* **Brief**: Secrecy of the data sent between two legitimate Decent Apps
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Revokers** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App A** Acting as a **server** receiving data (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App B** Acting as a **client** sending data (w/ legitimate AuthList)
+		* Infinite replication of **malicious enclaves** (generating RA quotes & LA reports)
+		* Infinite replication of **revoked Decent App D** (generating RA quotes & LA reports)
+* **Query**: Can attackers access the secret data sent by the client?
+* **Query in ProVerif**:
+```
+query attacker(secret_msg).
+```
+* **Rule inserted**: < 18k
+* **Estimated verification time**: < 5 min
+* **Result**: :white_check_mark:
+* **Report**: [result-01-AuApp-Secrecy/index.html](result-01-AuApp-Secrecy/index.html)
 
 ## Basic Verifications
 
@@ -53,7 +83,7 @@ Some verifications will run forever, thus, we have to decompose them into small 
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
 		* Infinite replication of **Decent Servers**
-		* Infinite replication of **Decent Revokers** (one type of Decent App)
+		* Infinite replication of **Decent Revokers** (one type of Decent App) (w/ AuthList given by untrusted hosts / attackers)
 		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
 * **Query**: A legitimate Decent Server should only issue certificates containing the identicial AuthList as the legitimate Decent App loaded and requested.
 * **Query in ProVerif**:
