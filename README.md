@@ -49,6 +49,12 @@ Some verifications will run forever, thus, we have to decompose them into small 
 ### [vf-b02-DecentRaServer.pv](vf-b02-DecentRaServer.pv)
 
 * **Brief**: Correctness of Decent Server
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Revokers** (one type of Decent App)
+		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
 * **Query**: A legitimate Decent Server should only issue certificates containing the identicial AuthList as the legitimate Decent App loaded and requested.
 * **Query in ProVerif**:
 ```
