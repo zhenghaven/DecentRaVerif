@@ -41,7 +41,7 @@ Some verifications will run forever, thus, we have to decompose them into small 
 	All legitimate Decent Apps are loaded with the same legitimate AuthList
 * **Transitive trust on AuthList**\
 	legitimate Decent Apps / Clients only accept other Decent Apps loaded with the same AuthList
-	* **Correctness of Decent Server**\
+	* [**Correctness of Decent Server**](#vf-b02-decentraserverpv)\
 		A legitimate Decent Server should issue certificates containing the identicial AuthList as the legitimate Decent App loaded
 
 ## Basic Verifications
