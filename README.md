@@ -43,3 +43,25 @@ Some verifications will run forever, thus, we have to decompose them into small 
 	legitimate Decent Apps / Clients only accept other Decent Apps loaded with the same AuthList
 	* **Correctness of Decent Server**\
 		A legitimate Decent Server should issue certificates containing the identicial AuthList as the legitimate Decent App loaded
+
+## Basic Verifications
+
+### [vf-b02-DecentRaServer.pv](vf-b02-DecentRaServer.pv)
+
+* **Brief**: Correctness of Decent Server
+* **Query**: A legitimate Decent Server should only issue certificates containing the identicial AuthList as the legitimate Decent App loaded and requested.
+* **Query in ProVerif**:
+```
+query anyAuLs : AuthList;
+	inj-event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), spkgen(new enclaveKeySeed), anyAuLs)) ==>
+	(
+		inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), new localRepKey, spkgen(new enclaveKeySeed), anyAuLs)) ==>
+		(
+			inj-event(DecentAppInit(enclaveA, spkgen(new enclaveKeySeed), anyAuLs))
+		)
+	).
+```
+* **Rule inserted**: < 1000
+* **Estimated verification time**: < 1 min
+* **Result**: :white_check_mark:
+* **Report**: [result-b02-Server/index.html](result-b02-Server/index.html)
