@@ -24,3 +24,22 @@ The next figure shows that the honest process is splited into an infinite replic
 	* control all message channels
 	* create their own Decent Apps or Decent Servers, and access their private keys
 	* access the private keys held by revoked Decent Apps
+
+## Attacker Processes
+
+Since attackers are able to create their own enclaves but without direct access to the provisioning key and local report key, we have to define part of "attacker's process" within the honest process.
+
+Within these honest processes, the attacker will be able to get a quote for their own enclaves for remote attestation, and it is signed with the provisioning key. The report data field in the quote is a public key, whose corresponding private key is known to the attacker. Moreover, the attacker will also be able to get a local attestation report for their own enclaves, and it is signed with the local report key. The private key of the public Diffie-Hellman key stated in the report is known to the attacker. That means, attackers can do anything they want in the name of their own enclaves, including but not limited to create malicious Decent Servers, and getting Decent App certificates from legitimate Decent Server for their malicious Decent App.
+
+## Verification Decompositions
+
+Some verifications will run forever, thus, we have to decompose them into small problems, and verify them one-by-one.
+
+### Authenticity of data sent between Decent Apps (which are both listed in the AuthList)
+
+* **Data authenticity (when Decent Apps are loaded with the same AuthList)**\
+	All legitimate Decent Apps are loaded with the same legitimate AuthList
+* **Transitive trust on AuthList**\
+	legitimate Decent Apps / Clients only accept other Decent Apps loaded with the same AuthList
+	* **Correctness of Decent Server**\
+		A legitimate Decent Server should issue certificates containing the identicial AuthList as the legitimate Decent App loaded
