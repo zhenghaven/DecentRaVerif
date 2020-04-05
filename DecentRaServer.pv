@@ -19,16 +19,14 @@ expand CV_public_key_enc_args(keyseed, bitstringbot, bottom, pkey, skey, clearte
 expand CV_keygen_types(key).
 expand CV_keygen_args(keyseed, key, kgen).
 
-expand CV_AEAD_types(key, add_data, nonce, zero_nonce, dummy_key, IncrNonce).
-expand CV_AEAD_args(key, bitstringbot, bottom, bitstring, ciphertext, bitstring, nonce, enc, enc, dec, sinjbot, sZ, dummy_key).
+expand CV_AEAD_types(key, add_data, nonce, enc_seed, zero_nonce, dummy_key, IncrNonce).
+expand CV_AEAD_args(key, bitstringbot, bottom, bitstring, ciphertext, bitstring, enc_seed, enc, enc_r, dec, sinjbot, sZ, dummy_key).
 
 	(***************************** DecentRA_EnclaveBas ******************************)
 
 expand Decent_Enclave_Basics(spkey, enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType).
 
-expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput, bitstring, ciphertext, bitstring, nonce, enc,
-	DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin,
-	dummy_ecpkey, GetEcPKeyA, GetEcPKeyB).
+expand Decent_ECDH_Key(key, ecskey, ecpkey, ecpkgen, signinput, DiHeValG, DiHeExp, EcDiHeToKey, EcDiHeKeyGen, EcPKeyToSignin).
 
 	(***************************** DecentRA_LocAtt ******************************)
 
@@ -65,6 +63,7 @@ expand Decent_Decent_Server(
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
+	(** This. MalProc **) MaliciousSvrProc_intr,
 	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr).
 
 	(***************************** DecentRA_DecentApp ******************************)
@@ -74,9 +73,10 @@ expand Decent_Decent_App(
 	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
-	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr,
-	(** Lists         **) AuthList,
+	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr, IasRep2Signin,
+	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
+	(** This.attaProc **) DecentApp_Malicious_Proc_intr,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
 	(** This.AppProc1 **) DecentApp_X_X_Svr_ProcP4_intr, DecentApp_X_Auls_Svr_ProcP3_intr, DecentApp_Auls_Auls_Svr_ProcP2_intr, DecentApp_Auls_Auls_Svr_Proc_intr,
@@ -112,6 +112,9 @@ const enclaveAName : bitstring.
 const enclaveB : enclaveProg.
 const enclaveBName : bitstring.
 
+const enclaveD : enclaveProg.
+const malDecentSvr : enclaveProg.
+
 (******************************* Secrecy assumptions *****************************)
 
 not attacker(iasRepKeySeed).
@@ -126,30 +129,29 @@ not attacker(sskgen(new localRepKey)).
 not attacker(sskgen(new decentSvrKeySeed)).
 not attacker(sskgen(new enclaveKeySeed)).
 
+not attacker(new decentSvrEcKey1).
 not attacker(new enclaveEcKey1).
-not attacker(new enclaveEcKey2).
+
+not attacker(EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, new decentSvrEcKey1), new enclaveEcKey1))).
+not attacker(EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, new enclaveEcKey1), new decentSvrEcKey1))).
 
 (******************************* Queries *****************************)
 
 (* Query 1 *)
-query anyEnclave : enclaveProg, anyEncKey : spkey, anyAuLs : AuthList,
-	anyEncKeySvrGot : spkey, anyAuLsSvrGot : AuthList,
-	anySPkeyLoaded : spkey, anyAuLsLoaded : AuthList;
-	inj-event(DecentAppGotCert(anyEnclave, HashEnclave(enclaveDecentSvr), anyEncKey, anyAuLs)) ==>
+query anyAuLs : AuthList;
+	inj-event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), spkgen(new enclaveKeySeed), anyAuLs)) ==>
 	(
-		inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(anyEnclave), new localRepKey, anyEncKeySvrGot, anyAuLsSvrGot)) ==>
+		inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), new localRepKey, spkgen(new enclaveKeySeed), anyAuLs)) ==>
 		(
-			inj-event(DecentAppInit(anyEnclave, anySPkeyLoaded, anyAuLsLoaded)) ==>
-			(
-				(anyEncKey = anyEncKeySvrGot) && (anyEncKeySvrGot = anySPkeyLoaded) &&
-				(anyAuLs = anyAuLsSvrGot) && (anyAuLsSvrGot = anyAuLsLoaded)
-			)
+			inj-event(DecentAppInit(enclaveA, spkgen(new enclaveKeySeed), anyAuLs))
 		)
 	).
 
 process
 	let pub_iasRepSPKey : spkey = spkgen(iasRepKeySeed) in
 	let pub_encPrvsKey : spkey = spkgen(encPrvsKeySeed) in
+
+	let revcListA = (HashEnclave(enclaveD), HashEnclave(enclaveD)) in
 
 	(* IAS Server A    *)
 	(!IasProc_intr(svrIasCh, iasRepKeySeed, pub_encPrvsKey))
@@ -162,7 +164,8 @@ process
 			(!
 				(
 					new decentSvrKeySeed : keyseed;
-					DecentSvrProc_intr(enclaveDecentSvr, decentSvrKeySeed, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, localRepKey)
+					new decentSvrEcKey1 : ecskey;
+					DecentSvrProc_intr(enclaveDecentSvr, decentSvrKeySeed, svrIasCh, appSvrCh, pub_iasRepSPKey, encPrvsKeySeed, localRepKey, decentSvrEcKey1)
 				)
 			)
 			|
@@ -171,10 +174,22 @@ process
 					in(attackCh, someAuls : AuthList);
 					new enclaveKeySeed : keyseed;
 					new enclaveEcKey1 : ecskey;
-					new enclaveEcKey2 : ecskey;
-					DecentApp_Auls_Auls_Svr_Proc_intr(enclaveA, appSvrCh, peerCh, recvCh,
-						pub_iasRepSPKey, localRepKey, enclaveKeySeed, decentSvrName, enclaveRecvName, enclaveBName, someAuls,
-						enclaveEcKey1, enclaveEcKey2)
+					DecentRevc_Proc_intr(enclaveA, appSvrCh, recvCh,
+						pub_iasRepSPKey, localRepKey, enclaveKeySeed, decentSvrName, someAuls, revcListA,
+						enclaveEcKey1)
+				)
+			)
+			(* Malicious Part: *)
+
+			(* Malicious Decent Server & App *)
+			|
+			(!
+				(
+					new malSvrKeyseed : keyseed;
+					new malSvrEcKey1 : ecskey;
+					out(attackCh, malSvrKeyseed);
+					out(attackCh, malSvrEcKey1);
+					MaliciousSvrProc_intr(malDecentSvr, malSvrKeyseed, svrIasCh, attackCh, encPrvsKeySeed, localRepKey, malSvrEcKey1)
 				)
 			)
 		)
