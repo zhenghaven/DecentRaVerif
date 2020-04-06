@@ -43,9 +43,9 @@ Secret data sent between legitimate Decent Apps should not be reachable to the a
 
 ### 02 Authenticity of data sent between Decent Apps (which are both listed in the AuthList)
 
-* **Data authenticity (when Decent Apps are loaded with the same AuthList)**\
+* [**Data authenticity (when Decent Apps are loaded with the same AuthList)**](#vf-02-decentraauapp-authenticity-2pv)\
 	All legitimate Decent Apps are loaded with the same legitimate AuthList
-* **Transitive trust on AuthList**\
+* [**Transitive trust on AuthList**](#vf-02-decentraauapp-authenticity-1pv)\
 	legitimate Decent Apps / Clients only accept other Decent Apps loaded with the same AuthList
 	* [**Correctness of Decent Server**](#vf-b02-decentraserverpv)\
 		A legitimate Decent Server should issue certificates containing the identicial AuthList as the legitimate Decent App loaded
@@ -73,6 +73,77 @@ query attacker(secret_msg).
 * **Estimated verification time**: < 5 min
 * **Result**: :white_check_mark:
 * **Report**: [result-01-AuApp-Secrecy/index.html](result-01-AuApp-Secrecy/index.html)
+
+### [vf-02-DecentRaAuApp-Authenticity-1.pv](vf-02-DecentRaAuApp-Authenticity-1.pv)
+
+* **Brief**: Transitive trust of AuthList
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Revokers** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App A** Acting as a **server** receiving data (w/ legitimate AuthList)
+		* Infinite replication of **Decent App B** Acting as a **client** sending data (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **malicious enclaves** (generating RA quotes & LA reports)
+		* Infinite replication of **revoked Decent App D** (generating RA quotes & LA reports)
+* **Query**: If a legitimate Decent App accept any peer, is the AuthList stored in peer's certificate identicial to the AuthList loaded in the App?
+* **Query in ProVerif**:
+```
+query anyMsg : bitstring,
+	anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
+	anyRevcEnc : enclaveHash, anyRevcEncAuLs : AuthList, anyRevcLs : bitstring,
+	anyAulsLoaded : AuthList;
+	let auLs =
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveD), enclaveBName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveB), enclaveBName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveA), enclaveAName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveRecv), enclaveRecvName),
+	AuthListInsert(AuthListNewItem(HashEnclave(enclaveDecentSvr), decentSvrName), AuthListEmpty))))) in
+	event(DecentAppAccPeer(enclaveA, anyAcceptedEnc, anyAcceptedEncAuls)) ==>
+	(
+		(anyAcceptedEncAuls = auLs)
+	).
+
+query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
+	anyAulsLoaded : AuthList;
+	event(DecentAppAccPeer(enclaveB, anyAcceptedEnc, anyAcceptedEncAuls)) ==>
+	(
+		event(DecentAppInit(enclaveB, spkgen(new enclaveBKeySeed), anyAulsLoaded)) ==>
+		(anyAcceptedEncAuls = anyAulsLoaded)
+	).
+```
+* **Rule inserted**: < 283k + 645k
+* **Estimated verification time**: < 6 hr + 22 hr
+* **Result**: :white_check_mark:
+* **Report**: [result-02-AuApp-Authenticity-1/index.html](result-02-AuApp-Authenticity-1/index.html)
+
+### [vf-02-DecentRaAuApp-Authenticity-2.pv](vf-02-DecentRaAuApp-Authenticity-2.pv)
+
+* **Brief**: Authenticity of the data received by a Decent App
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Revokers** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App A** Acting as a **server** receiving data (w/ legitimate AuthList)
+		* Infinite replication of **Decent App B** Acting as a **client** sending data (w/ legitimate AuthList)
+		* Infinite replication of **malicious enclaves** (generating RA quotes & LA reports)
+		* Infinite replication of **revoked Decent App D** (generating RA quotes & LA reports)
+* **Comment**:
+	* Based on previous verifications, if the attacker wants the App A and B to communicate, an identicial AuthList must be given to App B. If attackers don't want them to communicate, they can just block the message. Thus, in this part, a legitimate AuthList is also given to App B.
+* **Query**: If Decent App A receives any message, that message must be the legitimate message sent by App B?
+* **Query in ProVerif**:
+```
+query anyMsg : bitstring;
+	event(DecentAppGotMsg(enclaveA, anyMsg)) ==>
+	(
+		(anyMsg = legitimate_msg)
+	).
+```
+* **Rule inserted**: < 16k
+* **Estimated verification time**: < 5 min
+* **Result**: :white_check_mark:
+* **Report**: [result-02-AuApp-Authenticity-2/index.html](result-02-AuApp-Authenticity-2/index.html)
 
 ## Basic Verifications
 
