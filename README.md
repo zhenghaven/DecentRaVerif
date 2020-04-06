@@ -37,8 +37,6 @@ Some verifications will run forever, thus, we have to decompose them into small 
 
 ### 01 Secrecy of data sent between Decent Apps (which are both listed in the AuthList)
 
-Secret data sent between legitimate Decent Apps should not be reachable to the attacker.
-
 [This verification](#vf-01-decentraauapp-secrecypv) can be finished at once, thus, no decomposition is needed.
 
 ### 02 Authenticity of data sent between Decent Apps (which are both listed in the AuthList)
@@ -46,9 +44,22 @@ Secret data sent between legitimate Decent Apps should not be reachable to the a
 * [**Data authenticity (when Decent Apps are loaded with the same AuthList)**](#vf-02-decentraauapp-authenticity-2pv)\
 	All legitimate Decent Apps are loaded with the same legitimate AuthList
 * [**Transitive trust on AuthList**](#vf-02-decentraauapp-authenticity-1pv)\
-	legitimate Decent Apps / Clients only accept other Decent Apps loaded with the same AuthList
+	legitimate Decent Apps only accept other Decent Apps loaded with the same AuthList
 	* [**Correctness of Decent Server**](#vf-b02-decentraserverpv)\
-		A legitimate Decent Server should issue certificates containing the identicial AuthList as the legitimate Decent App loaded
+		A legitimate Decent Server should only issue certificates containing the identicial AuthList as the legitimate Decent App loaded
+
+### 03 Secrecy of data sent between verified Decent Apps
+
+
+
+### 04 Authenticity of data sent between verified Decent Apps
+
+* **Data authenticity (when verified Decent Apps are loaded with the same AuthList)**\
+	All legitimate verified Decent Apps are loaded with the same legitimate AuthList
+* **Transitive trust on AuthList**\
+	legitimate verified Decent Apps only accept other (verified) Decent Apps loaded with the same AuthList
+	* **Correctness of Decent Verifier**\
+		A legitimate Decent Verifier should only issue certificates containing the identicial AuthList as the legitimate Decent App and Verifier loaded
 
 ## Core Verifications
 
