@@ -61,8 +61,8 @@ expand Decent_Decent_Server(
 	(** Ias Rep       **) encPrvsKeySeed, GetEnclaveSignedQuote_intr, IasRep2Signin,
 	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This. Vars    **) enclaveDecentSvr, decentSvrName,
-	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert, VrfyDecentSvrCert_intr,
-	(** This. AppCert **) DecentAppSignin, GetDecentAppCert, VrfyDecentAppCertChain_intr,
+	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert,
+	(** This. AppCert **) DecentAppSignin, GetDecentAppCert,
 	(** This. MalProc **) MaliciousSvrProc_intr,
 	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr).
 
@@ -73,7 +73,7 @@ expand Decent_Decent_App(
 	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
-	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, VrfyDecentSvrCert_intr, VrfyDecentAppCertChain_intr, IasRep2Signin,
+	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, IasRep2Signin,
 	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
 	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
 	(** This.attaProc **) DecentApp_Malicious_Proc_intr,
@@ -84,7 +84,7 @@ expand Decent_Decent_App(
 	(** This.AppProc3 **) DecentApp_Vrfy_Auls_Svr_ProcP3_intr, DecentApp_Vrfy_Auls_Svr_ProcP2_intr, DecentApp_Vrfy_Auls_Svr_Proc_intr,
 	(** This.AppProc4 **) DecentApp_Vrfy_Vrfy_Svr_ProcP3_intr, DecentApp_Vrfy_Vrfy_Svr_ProcP2_intr, DecentApp_Vrfy_Vrfy_Svr_Proc_intr,
 	(** This.AppProc5 **) DecentApp_X_X_Clt_ProcP4_intr, DecentApp_X_Auls_Clt_ProcP3_intr, DecentApp_Auls_Auls_Clt_ProcP2_intr, DecentApp_Auls_Auls_Clt_Proc_intr,
-	(** This.AppProc6 **) DecentApp_X_Vrfy_Clt_ProcP3_intr_intr, DecentApp_Auls_Vrfy_Clt_ProcP2_intr, DecentApp_Auls_Vrfy_Clt_Proc_intr,
+	(** This.AppProc6 **) DecentApp_X_Vrfy_Clt_ProcP3_intr, DecentApp_Auls_Vrfy_Clt_ProcP2_intr, DecentApp_Auls_Vrfy_Clt_Proc_intr,
 	(** This.AppProc7 **) DecentApp_Vrfy_Auls_Clt_ProcP3_intr, DecentApp_Vrfy_Auls_Clt_ProcP2_intr, DecentApp_Vrfy_Auls_Clt_Proc_intr,
 	(** This.AppProc8 **) DecentApp_Vrfy_Vrfy_Clt_ProcP3_intr, DecentApp_Vrfy_Vrfy_Clt_ProcP2_intr, DecentApp_Vrfy_Vrfy_Clt_Proc_intr
 	).
@@ -265,15 +265,6 @@ process
 					MaliciousSvrProc_intr(malDecentSvr, malSvrKeyseed, svrIasCh, attackCh, encPrvsKeySeed, localRepKey, malSvrEcKey1)
 				)
 			)
-			(* Decent App C (attacker controlled)
-			|
-			(!
-				(
-					new enclaveCEcKey1 : ecskey;
-					out(attackCh, enclaveCEcKey1);
-					DecentApp_Malicious_Proc_intr(enclaveC, attackCh, localRepKey, enclaveCEcKey1)
-				)
-			) *)
 			(* Decent App D (attacker controlled, in AuthList, revoked) *)
 			|
 			(!
