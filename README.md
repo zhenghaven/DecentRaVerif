@@ -58,7 +58,7 @@ Some verifications will run forever, thus, we have to decompose them into small 
 	All legitimate verified Decent Apps are loaded with the same legitimate AuthList
 * **Transitive trust on AuthList**\
 	legitimate verified Decent Apps only accept other (verified) Decent Apps loaded with the same AuthList
-	* **Correctness of Decent Verifier**\
+	* [**Correctness of Decent Verifier**](#vf-b03-decentravrfypv)\
 		A legitimate Decent Verifier should only issue certificates containing the identicial AuthList as the legitimate Decent App and Verifier loaded
 
 ## Core Verifications
@@ -160,7 +160,7 @@ query anyMsg : bitstring;
 
 ### [vf-b02-DecentRaServer.pv](vf-b02-DecentRaServer.pv)
 
-* **Brief**: Correctness of Decent Server
+* **Brief**: Correctness of certificates issued by Decent Server
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -183,3 +183,43 @@ query anyAuLs : AuthList;
 * **Estimated verification time**: < 1 min
 * **Result**: :white_check_mark:
 * **Report**: [result-b02-Server/index.html](result-b02-Server/index.html)
+
+### [vf-b03-DecentRaVrfy.pv](vf-b03-DecentRaVrfy.pv)
+
+* **Brief**: Correctness of certificates issued by Decent Verifier
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Verifier** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent Verified App** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
+* **Query**: Can attackers alter the certificate issued by a legitimate Decent Verifier? Can attackers make the legitimate Decent Verifier issues a certificate containing public key and AuthList that is different from what App's has requested?
+* **Query in ProVerif**:
+```
+query anyHashInCert : enclaveHash, anyNameInCert : bitstring, anyKeyInCert : spkey, anyAuLsInCert : AuthList,
+	anyNameIssued : bitstring, anySvrHashAcc : enclaveHash, anyHashIssued : enclaveHash, anyKeyIssued : spkey, anyAuLsVrfyHolds : AuthList, anyAuLsIssued : AuthList,
+	anyKeyReq : spkey, anyAuLsReq : AuthList;
+	event(DecentVrfyAppGotCert(enclaveE, HashEnclave(enclaveDecentSvr), HashEnclave(enclaveVrfyE), anyNameInCert, anyHashInCert, anyKeyInCert, anyAuLsInCert)) ==>
+	(
+		event(DecentVrfyIssueCert(enclaveVrfyE, anySvrHashAcc, anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
+		(
+			(anyNameInCert = anyNameIssued) &&
+			(anyHashInCert = anyHashIssued) &&
+			(anyKeyInCert = anyKeyIssued) &&
+			(anyAuLsInCert = anyAuLsVrfyHolds) && (anyAuLsVrfyHolds = anyAuLsIssued)
+		)
+	);
+	event(DecentVrfyIssueCert(enclaveVrfyE, HashEnclave(enclaveDecentSvr), anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
+	(
+		event(DecentVrfyAppReqCert(enclaveE, anyKeyReq, anyAuLsReq)) ==>
+		(
+			(anyKeyIssued = anyKeyReq) &&
+			(anyAuLsVrfyHolds = anyAuLsIssued) && (anyAuLsIssued = anyAuLsReq)
+		)
+	).
+```
+* **Rule inserted**: < 2000
+* **Estimated verification time**: < 1 min
+* **Result**: :white_check_mark:
+* **Report**: [result-b03-Vrfy/index.html](result-b03-Vrfy/index.html)

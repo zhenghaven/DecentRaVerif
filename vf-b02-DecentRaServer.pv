@@ -94,6 +94,7 @@ expand Decent_Decent_App(
 
 (* Settings:*)
 set attacker = active.
+set redundantHypElim = true.
 
 (* Channels: *)
 free svrIasCh : channel.
