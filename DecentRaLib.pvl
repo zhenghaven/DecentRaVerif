@@ -766,7 +766,9 @@ def Decent_Decent_App(
 			(
 				(* Vrfy_Vrfy_Cert For_Peer *)
 				let DecentAppSignin(peerVrfyHash : enclaveHash, peerVrfySPKey : spkey, peerVrfyAuLs : AuthList) = getmess(peerVrfyCert) in
+				let (revokedEnc1 : enclaveHash, revokedEnc2 : enclaveHash) = reLs in
 				if checksign(getmess(peerVrfyCert), peerSvrSPKey, peerVrfyCert) &&
+					(revokedEnc1 <> peerVrfyHash) && (revokedEnc2 <> peerVrfyHash) &&
 					(auLs = peerVrfyAuLs) then
 				(
 					if AuthListIsIn(AuthListNewItem(peerVrfyHash, peerVrfyName), auLs) then
@@ -777,7 +779,6 @@ def Decent_Decent_App(
 							(auLs = peerAuLs) &&
 							(expPeerName = peerName) then
 						(
-							let (revokedEnc1 : enclaveHash, revokedEnc2 : enclaveHash) = reLs in
 							if (revokedEnc1 <> peerAppHash) && (revokedEnc2 <> peerAppHash) &&
 								checksign(EcPKeyToSignin(peerEcPKey), peerSPKey, peerEcKeySign) then
 							(
@@ -1330,7 +1331,9 @@ def Decent_Decent_App(
 			(
 				(* Vrfy_Vrfy_Cert For_Peer *)
 				let DecentAppSignin(peerVrfyHash : enclaveHash, peerVrfySPKey : spkey, peerVrfyAuLs : AuthList) = getmess(peerVrfyCert) in
+				let (revokedEnc1 : enclaveHash, revokedEnc2 : enclaveHash) = reLs in
 				if checksign(getmess(peerVrfyCert), peerSvrSPKey, peerVrfyCert) &&
+					(revokedEnc1 <> peerVrfyHash) && (revokedEnc2 <> peerVrfyHash) &&
 					(auLs = peerVrfyAuLs) then
 				(
 					if AuthListIsIn(AuthListNewItem(peerVrfyHash, peerVrfyName), auLs) then
@@ -1341,7 +1344,6 @@ def Decent_Decent_App(
 							(auLs = peerAuLs) &&
 							(expPeerName = peerName) then
 						(
-							let (revokedEnc1 : enclaveHash, revokedEnc2 : enclaveHash) = reLs in
 							if (revokedEnc1 <> peerAppHash) && (revokedEnc2 <> peerAppHash) &&
 								checksign(EcPKeyToSignin(peerEcPKey), peerSPKey, peerEcKeySign) then
 							(
