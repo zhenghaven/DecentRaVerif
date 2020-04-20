@@ -46,10 +46,9 @@ expand Decent_IAS_Report(
 	(** This. Rep   **) IasRep2Signin, GetSignedIasRep_intr, GetSignedIasRep,
 	(** This. Proc  **) IasIssueRep, IasProc_intr).
 
-	(***************************** DecentRA_AuthList ******************************)
+	(***************************** DecentRA Lists ******************************)
 
 expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, AuthListToStr).
-expand Decent_Recv_List(enclaveHash, RecvListItem, RecvListNewItem, RecvList, RecvListInsert, RecvListEmpty, RecvListIsIn, RecvListToStr).
 
 	(***************************** DecentRA_DecentSvr ******************************)
 
@@ -64,18 +63,18 @@ expand Decent_Decent_Server(
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert,
 	(** This. MalProc **) MaliciousSvrProc_intr,
-	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr).
+	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrProc_intr, DecentSvrProcP2_intr).
 
 	(***************************** DecentRA_DecentApp ******************************)
 
 expand Decent_Decent_App(
 	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, StrToSignin, emptyStr, key, cleartext, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
-	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, EventSubType,
+	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, IasRep2Signin,
 	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
-	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyIssueCert,
+	(** This.Event    **) DecentAppInit, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyAppReqCert, DecentVrfyIssueCert,
 	(** This.attaProc **) DecentApp_Malicious_Proc_intr,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
@@ -139,12 +138,13 @@ not attacker(EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, new enclaveEcKey1), new decen
 (******************************* Queries *****************************)
 
 (* Query 1 *)
-query anyAuLs : AuthList;
-	inj-event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), spkgen(new enclaveKeySeed), anyAuLs)) ==>
+query anyKeyIssued : spkey, anyAuLsIssued : AuthList,
+	anyKeyReq : spkey, anyAuLsLoaded : AuthList;
+	inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), new localRepKey, anyKeyIssued, anyAuLsIssued)) ==>
 	(
-		inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), new localRepKey, spkgen(new enclaveKeySeed), anyAuLs)) ==>
+		inj-event(DecentAppInit(enclaveA, anyKeyReq, anyAuLsLoaded)) ==>
 		(
-			inj-event(DecentAppInit(enclaveA, spkgen(new enclaveKeySeed), anyAuLs))
+			(anyKeyIssued = anyKeyReq) && (anyAuLsIssued = anyAuLsLoaded)
 		)
 	).
 

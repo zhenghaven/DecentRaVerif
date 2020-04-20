@@ -49,7 +49,6 @@ expand Decent_IAS_Report(
 	(***************************** DecentRA Lists ******************************)
 
 expand Decent_Auth_List(enclaveHash, AuthListItem, AuthListNewItem, AuthList, AuthListInsert, AuthListEmpty, AuthListIsIn, AuthListToStr).
-expand Decent_Recv_List(enclaveHash, RecvListItem, RecvListNewItem, RecvList, RecvListInsert, RecvListEmpty, RecvListIsIn, RecvListToStr).
 
 	(***************************** DecentRA_DecentSvr ******************************)
 
@@ -64,18 +63,18 @@ expand Decent_Decent_Server(
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert,
 	(** This. MalProc **) MaliciousSvrProc_intr,
-	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr).
+	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrProc_intr, DecentSvrProcP2_intr).
 
 	(***************************** DecentRA_DecentApp ******************************)
 
 expand Decent_Decent_App(
 	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, StrToSignin, emptyStr, key, cleartext, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
-	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, EventSubType,
+	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, IasRep2Signin,
 	(** Lists         **) AuthList, AuthListNewItem, AuthListIsIn,
-	(** This.Event    **) DecentAppInit, DecentAppGotCert, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyAppReqCert, DecentVrfyIssueCert, DecentVrfyAppGotCert,
+	(** This.Event    **) DecentAppInit, DecentAppGotRels, DecentAppAccPeer, DecentAppGotMsg, DecentVrfyAppReqCert, DecentVrfyIssueCert,
 	(** This.attaProc **) DecentApp_Malicious_Proc_intr,
 	(** This.VrfyProc **) DecentVrfy_Proc_intr, DecentVrfy_ProcP2_intr,
 	(** This.RecvProc **) DecentRevc_Proc_intr, DecentRevc_ProcP2_intr,
@@ -110,8 +109,8 @@ const msg : bitstring [private].
 (* Enclaves *)
 const enclaveRecvName : bitstring.
 
-const enclaveVrfyE : enclaveProg.
-const enclaveVrfyEName : bitstring.
+const enclaveVrfy : enclaveProg.
+const enclaveVrfyName : bitstring.
 
 const enclaveE : enclaveProg.
 const enclaveEName : bitstring.
@@ -153,20 +152,9 @@ not attacker(EcDiHeToKey(DiHeExp(DiHeExp(DiHeValG, new enclaveEEcKey1), new dece
 (******************************* Queries *****************************)
 
 (* Query 1 *)
-query anyHashInCert : enclaveHash, anyNameInCert : bitstring, anyKeyInCert : spkey, anyAuLsInCert : AuthList,
-	anyNameIssued : bitstring, anySvrHashAcc : enclaveHash, anyHashIssued : enclaveHash, anyKeyIssued : spkey, anyAuLsVrfyHolds : AuthList, anyAuLsIssued : AuthList,
+query anyNameIssued : bitstring, anyHashIssued : enclaveHash, anyKeyIssued : spkey, anyAuLsVrfyHolds : AuthList, anyAuLsIssued : AuthList,
 	anyKeyReq : spkey, anyAuLsReq : AuthList;
-	event(DecentVrfyAppGotCert(enclaveE, HashEnclave(enclaveDecentSvr), HashEnclave(enclaveVrfyE), anyNameInCert, anyHashInCert, anyKeyInCert, anyAuLsInCert)) ==>
-	(
-		event(DecentVrfyIssueCert(enclaveVrfyE, anySvrHashAcc, anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
-		(
-			(anyNameInCert = anyNameIssued) &&
-			(anyHashInCert = anyHashIssued) &&
-			(anyKeyInCert = anyKeyIssued) &&
-			(anyAuLsInCert = anyAuLsVrfyHolds) && (anyAuLsVrfyHolds = anyAuLsIssued)
-		)
-	);
-	event(DecentVrfyIssueCert(enclaveVrfyE, HashEnclave(enclaveDecentSvr), anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
+	event(DecentVrfyIssueCert(enclaveVrfy, HashEnclave(enclaveDecentSvr), anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
 	(
 		event(DecentVrfyAppReqCert(enclaveE, anyKeyReq, anyAuLsReq)) ==>
 		(
@@ -202,7 +190,7 @@ process
 					in(attackCh, someAuls1 : AuthList);
 					new enclaveVrfyEKeySeed : keyseed;
 					new enclaveVrfyEEcKey1 : ecskey;
-					DecentVrfy_Proc_intr(enclaveVrfyE, appSvrCh, vrfyCh, pub_iasRepSPKey,
+					DecentVrfy_Proc_intr(enclaveVrfy, appSvrCh, vrfyCh, pub_iasRepSPKey,
 						localRepKey, enclaveVrfyEKeySeed, decentSvrName, someAuls1, enclaveEName, HashEnclave(enclaveE), enclaveVrfyEEcKey1)
 				)
 			)
@@ -216,7 +204,7 @@ process
 					new enclaveEEcKey2 : ecskey;
 					DecentApp_Vrfy_Vrfy_Svr_Proc_intr(enclaveE, appSvrCh, vrfyCh, peerCh, recvCh,
 						pub_iasRepSPKey, localRepKey, enclaveEKeySeed,
-						decentSvrName, enclaveRecvName, enclaveVrfyEName, enclaveFName, enclaveVrfyEName, someAuls2, enclaveEEcKey1, enclaveEEcKey2)
+						decentSvrName, enclaveRecvName, enclaveEName, enclaveVrfyName, enclaveFName, enclaveVrfyName, someAuls2, enclaveEEcKey1, enclaveEEcKey2)
 				)
 			)
 			(* Malicious Part: *)

@@ -294,15 +294,12 @@ def Decent_Decent_Server(
 	(** This. SvrCert **) DecentSvrSignin, GetDecentSvrCert,
 	(** This. AppCert **) DecentAppSignin, GetDecentAppCert,
 	(** This. MalProc **) MaliciousSvrProc_intr,
-	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrGotIasRep, DecentSvrProc_intr, DecentSvrProcP2_intr) {
+	(** This. SvrProc **) DecentSvrIssueCert, DecentSvrProc_intr, DecentSvrProcP2_intr) {
 
 	const enclaveDecentSvr : enclaveProg.
 	const decentSvrName : bitstring.
 
 	event DecentSvrIssueCert(enclaveProg, enclaveHash, keyseed, spkey, AuthList).
-	event DecentSvrGotIasRep(enclaveProg, spkey).
-
-	(*let pub_decentSvrHash : enclaveHash = HashEnclave(enclaveDecentSvr) in*)
 
 	(* Decent App Cert *)
 
@@ -332,16 +329,12 @@ def Decent_Decent_Server(
 			let locChKey = EcDiHeKeyGen(myEcKey1, appEcPKey) in
 			let chNonce0 = zero_nonce in
 			let chNonce1 = IncrNonce(chNonce0) in
-			let certSignReq = dec(certSignReqCipher, (false, chNonce0), locChKey) in
-			if certSignReq <> bottom then
-			(
-				let sinjbot((appSPkey : spkey, auLs : AuthList)) = certSignReq in
-				event DecentSvrIssueCert(encProg, appEncHash, repKeySeed, appSPkey, auLs);
+			let sinjbot((appSPkey : spkey, auLs : AuthList)) = dec(certSignReqCipher, (false, chNonce0), locChKey) in
 
-				(* >app 2. Generate App Certificate *)
-				out(appCh, enc((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed))), (true, chNonce1), locChKey))
-				(*sync 2*)
-			)
+			event DecentSvrIssueCert(encProg, appEncHash, repKeySeed, appSPkey, auLs);
+
+			(* >app 2. Generate App Certificate *)
+			out(appCh, enc((svrCert, GetDecentAppCert(appEncHash, appSPkey, auLs, sskgen(svrKeySeed))), (true, chNonce1), locChKey))
 		).
 
 	let DecentSvrProc_intr(encProg : enclaveProg, svrKeySeed : keyseed, iasCh : channel, appCh : channel, iasSPkey : spkey, prvsKeySeed : keyseed, repKeySeed : keyseed,
@@ -353,12 +346,9 @@ def Decent_Decent_Server(
 		(* >IAS 2. Receive IAS Report *)
 		in(iasCh, iasRep : signature);
 
-		let IasRep2Signin(iasRes : bool, iasRepEncHash : enclaveHash, iasRepAppData: bitstring) = getmess(iasRep) in
-		if checksign(getmess(iasRep), iasSPkey, iasRep) && iasRes then
+		let IasRep2Signin(=true, =HashEnclave(encProg), =SPKey2Bitstr(spkgen(svrKeySeed))) = getmess(iasRep) in
+		if checksign(getmess(iasRep), iasSPkey, iasRep) then
 		(
-			(* Successfully received valid IAS report. *)
-			event DecentSvrGotIasRep(encProg, iasSPkey);
-
 			DecentSvrProcP2_intr(encProg, svrKeySeed, appCh, iasRep, repKeySeed, myEcKey1)
 		).
 
@@ -377,13 +367,9 @@ def Decent_Decent_Server(
 
 (***************************** Decent App ******************************)
 
-(* Certs *)
-
-(* process (NOTE: revocation) *)
-
 def Decent_Decent_App(
 	(** CV_ macros    **) keyseed, sskey, spkey, sskgen, spkgen, getmess, sign, checksign, signinput, signature, StrToSignin, emptyStr, key, cleartext, ciphertext, nonce, enc, dec, sinjbot, bottom, zero_nonce, IncrNonce,
-	(** Encl Basics   **) enclaveProg, enclaveHash, SPKey2Bitstr, EventSubType,
+	(** Encl Basics   **) enclaveProg, enclaveHash, HashEnclave, SPKey2Bitstr, EventSubType,
 	(** ECHD Key      **) ecskey, ecpkey, ecpkgen, EcDiHeKeyGen, EcPKeyToSignin,
 	(** LocAtt Rep    **) LocAttRep, GetLocAttSignedRep,
 	(** Decent Svr    **) DecentSvrSignin, DecentAppSignin, IasRep2Signin,
