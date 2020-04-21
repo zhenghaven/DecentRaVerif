@@ -263,8 +263,8 @@ query anyMsg : bitstring;
 	event(DecentAppGotMsg(enclaveE, anyMsg)) ==>
 	(anyMsg = legitimate_msg).
 ```
-* **Rule inserted**: <
-* **Estimated verification time**: <
+* **Rule inserted**: < 135k
+* **Estimated verification time**: < 5 hr
 * **Result**: :white_check_mark:
 * **Report**: [result-04-VfApp-Authenticity-2/index.html](result-04-VfApp-Authenticity-2/index.html)
 
