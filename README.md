@@ -82,8 +82,8 @@ Some verifications will run forever, thus, we have to decompose them into small 
 ```
 query attacker(secret_msg).
 ```
-* **Rule inserted**: < 18k
-* **Estimated verification time**: < 5 min
+* **Rule inserted**: < 11k
+* **Estimated verification time**: < 2 min
 * **Result**: :white_check_mark:
 * **Report**: [result-01-AuApp-Secrecy/index.html](result-01-AuApp-Secrecy/index.html)
 
@@ -159,8 +159,8 @@ query anyMsg : bitstring;
 		(anyMsg = legitimate_msg)
 	).
 ```
-* **Rule inserted**: < 16k
-* **Estimated verification time**: < 5 min
+* **Rule inserted**: < 9k
+* **Estimated verification time**: < 2 min
 * **Result**: :white_check_mark:
 * **Report**: [result-02-AuApp-Authenticity-2/index.html](result-02-AuApp-Authenticity-2/index.html)
 
