@@ -66,6 +66,8 @@ Some verifications will run forever, thus, we have to decompose them into small 
 ### [vf-01-DecentRaAuApp-Secrecy.pv](vf-01-DecentRaAuApp-Secrecy.pv)
 
 * **Brief**: Secrecy of the data sent between two legitimate Decent Apps
+* **Legitimate AuthList** : [(App-D : App-A-Name), (App-A : App-A-Name), (App-B : App-B-Name), (Revoker : Revoker-Name), (Server : Server-Name)]
+* **Revocation List** : [App-D]
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -88,6 +90,8 @@ query attacker(secret_msg).
 ### [vf-02-DecentRaAuApp-Authenticity-1.pv](vf-02-DecentRaAuApp-Authenticity-1.pv)
 
 * **Brief**: Transitive trust of AuthList
+* **Legitimate AuthList** : [(App-D : App-A-Name), (App-A : App-A-Name), (App-B : App-B-Name), (Revoker : Revoker-Name), (Server : Server-Name)]
+* **Revocation List** : [App-D]
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -133,6 +137,8 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 ### [vf-02-DecentRaAuApp-Authenticity-2.pv](vf-02-DecentRaAuApp-Authenticity-2.pv)
 
 * **Brief**: Authenticity of the data transmitted between two Decent Apps
+* **Legitimate AuthList** : [(App-D : App-A-Name), (App-A : App-A-Name), (App-B : App-B-Name), (Revoker : Revoker-Name), (Server : Server-Name)]
+* **Revocation List** : [App-D]
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -161,6 +167,8 @@ query anyMsg : bitstring;
 ### [vf-03-DecentRaVfApp-Secrecy.pv](vf-03-DecentRaVfApp-Secrecy.pv)
 
 * **Brief**: Secrecy of the data sent between two legitimate Decent Verified Apps
+* **Legitimate AuthList** : [(App-D : Verifier-Name), (Verifier : Verifier-Name), (Revoker : Revoker-Name), (Server : Server-Name)]
+* **Revocation List** : [App-D]
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -185,6 +193,8 @@ query attacker(secret_msg).
 ### [vf-04-DecentRaVfApp-Authenticity-1.pv](vf-04-DecentRaVfApp-Authenticity-1.pv)
 
 * **Brief**: Transitive trust of AuthList
+* **Legitimate AuthList** : [(App-D : Verifier-Name), (Verifier : Verifier-Name), (Revoker : Revoker-Name), (Server : Server-Name)]
+* **Revocation List** : [App-D]
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -231,6 +241,8 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 ### [vf-04-DecentRaVfApp-Authenticity-2.pv](vf-04-DecentRaVfApp-Authenticity-2.pv)
 
 * **Brief**: Authenticity of the data transmitted between two legitimate Decent Verified Apps
+* **Legitimate AuthList** : [(App-D : Verifier-Name), (Verifier : Verifier-Name), (Revoker : Revoker-Name), (Server : Server-Name)]
+* **Revocation List** : [App-D]
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
