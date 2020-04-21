@@ -50,11 +50,11 @@ Some verifications will run forever, thus, we have to decompose them into small 
 
 ### 03 Secrecy of data sent between verified Decent Apps
 
-
+[This verification](#vf-03-decentravfapp-secrecypv) can be finished at once, thus, no decomposition is needed.
 
 ### 04 Authenticity of data sent between verified Decent Apps
 
-* **Data authenticity (when verified Decent Apps are loaded with the same AuthList)**\
+* [**Data authenticity (when verified Decent Apps are loaded with the same AuthList)**](#vf-04-decentravfapp-authenticity-2pv)\
 	All legitimate verified Decent Apps are loaded with the same legitimate AuthList
 * **Transitive trust on AuthList**\
 	legitimate verified Decent Apps only accept other (verified) Decent Apps loaded with the same AuthList
