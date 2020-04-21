@@ -130,7 +130,7 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 
 ### [vf-02-DecentRaAuApp-Authenticity-2.pv](vf-02-DecentRaAuApp-Authenticity-2.pv)
 
-* **Brief**: Authenticity of the data received by a Decent App
+* **Brief**: Authenticity of the data transmitted between two Decent Apps
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -156,26 +156,79 @@ query anyMsg : bitstring;
 * **Result**: :white_check_mark:
 * **Report**: [result-02-AuApp-Authenticity-2/index.html](result-02-AuApp-Authenticity-2/index.html)
 
+### [vf-03-DecentRaVfApp-Secrecy.pv](vf-03-DecentRaVfApp-Secrecy.pv)
+
+* **Brief**: Secrecy of the data sent between two legitimate Decent Verified Apps
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Revokers** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App E** acting as a **server** receiving data (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App F** acting as a **client** sending secret data (w/ legitimate AuthList)
+		* Infinite replication of **Decent Verifier** verifying Decent App E (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent Verifier** verifying Decent App F (w/ legitimate AuthList)
+		* Infinite replication of **malicious enclaves** (generating RA quotes & LA reports)
+		* Infinite replication of **revoked enclave D** which could act as a verifier, or verified app (generating RA quotes & LA reports)
+* **Query**: Can attackers access the secret data sent by the client?
+* **Query in ProVerif**:
+```
+query attacker(secret_msg).
+```
+* **Rule inserted**: < 177k
+* **Estimated verification time**: < 8 hr
+* **Result**: :white_check_mark:
+* **Report**: [result-03-VfApp-Secrecy/index.html](result-03-VfApp-Secrecy/index.html)
+
+### [vf-04-DecentRaVfApp-Authenticity-2.pv](vf-04-DecentRaVfApp-Authenticity-2.pv)
+
+* **Brief**: Authenticity of the data transmitted between two legitimate Decent Verified Apps
+* **Processes**:
+	* Infinite replication of **IAS processes**
+	* Infinite replication of **enclave platforms**
+		* Infinite replication of **Decent Servers**
+		* Infinite replication of **Decent Revokers** (w/ AuthList given by untrusted hosts / attackers)
+		* Infinite replication of **Decent App E** acting as a **server** receiving the data (w/ legitimate AuthList)
+		* Infinite replication of **Decent App F** acting as a **client** sending the data (w/ legitimate AuthList)
+		* Infinite replication of **Decent Verifier** verifying Decent App E (w/ legitimate AuthList)
+		* Infinite replication of **Decent Verifier** verifying Decent App F (w/ legitimate AuthList)
+		* Infinite replication of **malicious enclaves** (generating RA quotes & LA reports)
+		* Infinite replication of **revoked enclave D** which could act as a verifier, or verified app (generating RA quotes & LA reports)
+* **Comment**:
+	* Based on previous verifications, if the attacker wants the App E and F to communicate, an identicial AuthList must be given to App F. If attackers don't want them to communicate, they can just block the message. Thus, in this part, a legitimate AuthList is also given to App F.
+* **Query**: If Decent Verified App E receives any message, is that message same as the legitimate message sent by App E?
+* **Query in ProVerif**:
+```
+query anyMsg : bitstring;
+	event(DecentAppGotMsg(enclaveE, anyMsg)) ==>
+	(anyMsg = legitimate_msg).
+```
+* **Rule inserted**: <
+* **Estimated verification time**: <
+* **Result**: :white_check_mark:
+* **Report**: [result-04-VfApp-Authenticity-2/index.html](result-04-VfApp-Authenticity-2/index.html)
+
 ## Basic Verifications
 
 ### [vf-b02-DecentRaServer.pv](vf-b02-DecentRaServer.pv)
 
-* **Brief**: Correctness of certificates issued by Decent Server
+* **Brief**: Correctness of certificates issued by Decent Server - A legitimate Decent Server should issue certificates only containing the public key and AuthList that requested by the Decent App
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
 		* Infinite replication of **Decent Servers**
 		* Infinite replication of **Decent Revokers** (one type of Decent App) (w/ AuthList given by untrusted hosts / attackers)
 		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
-* **Query**: A legitimate Decent Server should only issue certificates containing the identicial AuthList as the legitimate Decent App loaded and requested.
+* **Query**: Will a Decent Server issue a certificate containing public key and AuthList that are different from what Decent App has requested?
 * **Query in ProVerif**:
 ```
-query anyAuLs : AuthList;
-	inj-event(DecentAppGotCert(enclaveA, HashEnclave(enclaveDecentSvr), spkgen(new enclaveKeySeed), anyAuLs)) ==>
+query anyKeyIssued : spkey, anyAuLsIssued : AuthList,
+	anyKeyReq : spkey, anyAuLsLoaded : AuthList;
+	inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), new localRepKey, anyKeyIssued, anyAuLsIssued)) ==>
 	(
-		inj-event(DecentSvrIssueCert(enclaveDecentSvr, HashEnclave(enclaveA), new localRepKey, spkgen(new enclaveKeySeed), anyAuLs)) ==>
+		inj-event(DecentAppInit(enclaveA, anyKeyReq, anyAuLsLoaded)) ==>
 		(
-			inj-event(DecentAppInit(enclaveA, spkgen(new enclaveKeySeed), anyAuLs))
+			(anyKeyIssued = anyKeyReq) && (anyAuLsIssued = anyAuLsLoaded)
 		)
 	).
 ```
@@ -186,7 +239,7 @@ query anyAuLs : AuthList;
 
 ### [vf-b03-DecentRaVrfy.pv](vf-b03-DecentRaVrfy.pv)
 
-* **Brief**: Correctness of certificates issued by Decent Verifier
+* **Brief**: Correctness of certificates issued by Decent Verifier - A legitimate Decent Verifier should issue certificates only containing the public key and AuthList that requested by the Decent Verified App, and the verifier and verified app should both hold the same AuthList
 * **Processes**:
 	* Infinite replication of **IAS processes**
 	* Infinite replication of **enclave platforms**
@@ -194,23 +247,12 @@ query anyAuLs : AuthList;
 		* Infinite replication of **Decent Verifier** (w/ AuthList given by untrusted hosts / attackers)
 		* Infinite replication of **Decent Verified App** (w/ AuthList given by untrusted hosts / attackers)
 		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
-* **Query**: Can attackers alter the certificate issued by a legitimate Decent Verifier? Can attackers make the legitimate Decent Verifier issues a certificate containing public key and AuthList that is different from what App's has requested?
+* **Query**: Will a Decent Verifier issue certificates containing public key and AuthList that are different from what Decent Verified App has requested? Will a Decent Verifier issue certificates to Decent Verified App that holds different AuthList?
 * **Query in ProVerif**:
 ```
-query anyHashInCert : enclaveHash, anyNameInCert : bitstring, anyKeyInCert : spkey, anyAuLsInCert : AuthList,
-	anyNameIssued : bitstring, anySvrHashAcc : enclaveHash, anyHashIssued : enclaveHash, anyKeyIssued : spkey, anyAuLsVrfyHolds : AuthList, anyAuLsIssued : AuthList,
+query anyNameIssued : bitstring, anyHashIssued : enclaveHash, anyKeyIssued : spkey, anyAuLsVrfyHolds : AuthList, anyAuLsIssued : AuthList,
 	anyKeyReq : spkey, anyAuLsReq : AuthList;
-	event(DecentVrfyAppGotCert(enclaveE, HashEnclave(enclaveDecentSvr), HashEnclave(enclaveVrfyE), anyNameInCert, anyHashInCert, anyKeyInCert, anyAuLsInCert)) ==>
-	(
-		event(DecentVrfyIssueCert(enclaveVrfyE, anySvrHashAcc, anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
-		(
-			(anyNameInCert = anyNameIssued) &&
-			(anyHashInCert = anyHashIssued) &&
-			(anyKeyInCert = anyKeyIssued) &&
-			(anyAuLsInCert = anyAuLsVrfyHolds) && (anyAuLsVrfyHolds = anyAuLsIssued)
-		)
-	);
-	event(DecentVrfyIssueCert(enclaveVrfyE, HashEnclave(enclaveDecentSvr), anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
+	event(DecentVrfyIssueCert(enclaveVrfy, HashEnclave(enclaveDecentSvr), anyNameIssued, anyHashIssued, anyKeyIssued, anyAuLsVrfyHolds, anyAuLsIssued)) ==>
 	(
 		event(DecentVrfyAppReqCert(enclaveE, anyKeyReq, anyAuLsReq)) ==>
 		(
