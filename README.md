@@ -129,8 +129,8 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 		(anyAcceptedEncAuls = anyAulsLoaded)
 	).
 ```
-* **Rule inserted**: < 283k + 645k
-* **Estimated verification time**: < 6 hr + 22 hr
+* **Rule inserted**: < 42k + 78k
+* **Estimated verification time**: < 0.6 hr + 0.6 hr
 * **Result**: :white_check_mark:
 * **Report**: [result-02-AuApp-Authenticity-1/index.html](result-02-AuApp-Authenticity-1/index.html)
 
@@ -233,9 +233,9 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 		(anyAcceptedEncAuls = anyAulsLoaded)
 	).
 ```
-* **Rule inserted**: <  +
-* **Estimated verification time**: <  +
-* **Result**:
+* **Rule inserted**: < 300k + 749k
+* **Estimated verification time**: < 13 hr + 43 hr
+* **Result**: :white_check_mark:
 * **Report**: [result-04-VfApp-Authenticity-1/index.html](result-04-VfApp-Authenticity-1/index.html)
 
 ### [vf-04-DecentRaVfApp-Authenticity-2.pv](vf-04-DecentRaVfApp-Authenticity-2.pv)
