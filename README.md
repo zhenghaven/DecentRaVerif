@@ -179,7 +179,7 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 		(anyAcceptedEncAuls = anyAulsLoaded)
 	).
 ```
-* **Rule inserted**: < 300k + 749k
+* **Rule inserted**: < 300k + 740k
 * **Estimated verification time**: < 13 hr + 43 hr
 * **Result**: :white_check_mark:
 * **Report**: [result-04-VfApp-Authenticity-1/index.html](result-04-VfApp-Authenticity-1/index.html)
