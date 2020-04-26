@@ -1,7 +1,7 @@
 # DecentRaVerif
 Verification of the Decent RA protocol, by using the ProVerif verification tool.
 
-***Release:***
+***Release: 1.0***
 
 ## Process Overview
 The following figure shows that we modeled DecentRA framework with 6 different processes.
