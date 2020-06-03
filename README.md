@@ -74,9 +74,11 @@ Some verifications will run forever, thus, we have to decompose them into small 
 		* Infinite replication of **revoked Decent App D** (generating RA quotes & LA reports)
 * **Query**: Can attackers access the secret data sent by the client?
 * **Query in ProVerif**:
+
 ```
 query attacker(secret_msg).
 ```
+
 * **Rule inserted**: < 11k
 * **Estimated verification time**: < 2 min
 * **Result**: :white_check_mark:
@@ -98,6 +100,7 @@ query attacker(secret_msg).
 		* Infinite replication of **revoked Decent App D** (generating RA quotes & LA reports)
 * **Query**: If Decent App A receives any message, is that message same as the legitimate message sent by App B?
 * **Query in ProVerif**:
+
 ```
 query anyMsg : bitstring;
 	event(DecentAppGotMsg(enclaveA, anyMsg)) ==>
@@ -105,6 +108,7 @@ query anyMsg : bitstring;
 		(anyMsg = legitimate_msg)
 	).
 ```
+
 * **Rule inserted**: < 113k
 * **Estimated verification time**: < 4 hr
 * **Result**: :white_check_mark:
@@ -128,9 +132,11 @@ query anyMsg : bitstring;
 		* Infinite replication of **revoked enclave D** which could act as a verifier, or verified app (generating RA quotes & LA reports)
 * **Query**: Can attackers access the secret data sent by the client?
 * **Query in ProVerif**:
+
 ```
 query attacker(secret_msg).
 ```
+
 * **Rule inserted**: < 177k
 * **Estimated verification time**: < 8 hr
 * **Result**: :white_check_mark:
@@ -156,6 +162,7 @@ query attacker(secret_msg).
 	* If Decent Verified App E accept any peer, is the AuthList stored in peer's certificate identical to the AuthList loaded by App E?
 	* If Decent Verified App F accept any peer, is the AuthList stored in peer's certificate identical to the AuthList loaded by App F?
 * **Query in ProVerif**:
+
 ```
 query anyMsg : bitstring,
 	anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
@@ -179,6 +186,7 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 		(anyAcceptedEncAuls = anyAulsLoaded)
 	).
 ```
+
 * **Rule inserted**: < 300k + 740k
 * **Estimated verification time**: < 13 hr + 43 hr
 * **Result**: :white_check_mark:
@@ -204,11 +212,13 @@ query anyAcceptedEnc : enclaveHash, anyAcceptedEncAuls : AuthList,
 	* Based on previous verifications, if the attacker wants the App E and F to communicate, an identical AuthList must be given to App F. If attackers don't want them to communicate, they can just block the message. Thus, in this part, a legitimate AuthList is also given to App F.
 * **Query**: If Decent Verified App E receives any message, is that message same as the legitimate message sent by App F?
 * **Query in ProVerif**:
+
 ```
 query anyMsg : bitstring;
 	event(DecentAppGotMsg(enclaveE, anyMsg)) ==>
 	(anyMsg = legitimate_msg).
 ```
+
 * **Rule inserted**: < 135k
 * **Estimated verification time**: < 5 hr
 * **Result**: :white_check_mark:
@@ -227,6 +237,7 @@ query anyMsg : bitstring;
 		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
 * **Query**: Will a Decent Server issue a certificate containing public key and AuthList that are different from what Decent App has requested?
 * **Query in ProVerif**:
+
 ```
 query anyKeyIssued : spkey, anyAuLsIssued : AuthList,
 	anyKeyReq : spkey, anyAuLsLoaded : AuthList;
@@ -238,6 +249,7 @@ query anyKeyIssued : spkey, anyAuLsIssued : AuthList,
 		)
 	).
 ```
+
 * **Rule inserted**: < 1000
 * **Estimated verification time**: < 1 min
 * **Result**: :white_check_mark:
@@ -255,6 +267,7 @@ query anyKeyIssued : spkey, anyAuLsIssued : AuthList,
 		* Infinite replication of **malicious enclaves** (generating RA quotes and LA reports)
 * **Query**: Will a Decent Verifier issue certificates containing public key and AuthList that are different from what Decent Verified App has requested? Will a Decent Verifier issue certificates to Decent Verified App that holds different AuthList?
 * **Query in ProVerif**:
+
 ```
 query anyNameIssued : bitstring, anyHashIssued : enclaveHash, anyKeyIssued : spkey, anyAuLsVrfyHolds : AuthList, anyAuLsIssued : AuthList,
 	anyKeyReq : spkey, anyAuLsReq : AuthList;
@@ -267,6 +280,7 @@ query anyNameIssued : bitstring, anyHashIssued : enclaveHash, anyKeyIssued : spk
 		)
 	).
 ```
+
 * **Rule inserted**: < 2000
 * **Estimated verification time**: < 1 min
 * **Result**: :white_check_mark:
